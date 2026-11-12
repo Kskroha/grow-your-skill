@@ -7,8 +7,8 @@ import { Button, Field, TextInput } from '../components/ui.tsx'
 export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('teacher@grow.local')
-  const [password, setPassword] = useState('teacher123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
 

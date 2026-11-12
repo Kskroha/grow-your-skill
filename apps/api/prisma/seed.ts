@@ -1,17 +1,40 @@
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
 import { ExerciseType, PrismaClient, Role, TopicKind } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+
+function loadEnvFile(path: string) {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (process.env[key] == null) process.env[key] = value;
+  }
+}
+
+loadEnvFile(resolve(__dirname, '../../.env'));
+loadEnvFile(resolve(__dirname, '../.env'));
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const teacherHash = await bcrypt.hash('teacher123', 10);
+  const email = process.env.TEACHER_EMAIL?.trim();
+  const password = process.env.TEACHER_PASSWORD;
+  if (!email || !password) {
+    throw new Error('Задайте TEACHER_EMAIL и TEACHER_PASSWORD в .env');
+  }
+  const teacherHash = await bcrypt.hash(password, 10);
 
   const teacher = await prisma.user.upsert({
-    where: { email: 'teacher@grow.local' },
-    update: { name: 'Ксения', passwordHash: teacherHash, role: Role.TEACHER },
+    where: { id: 'user_teacher' },
+    update: { email, name: 'Ксения', passwordHash: teacherHash, role: Role.TEACHER },
     create: {
       id: 'user_teacher',
-      email: 'teacher@grow.local',
+      email,
       name: 'Ксения',
       role: Role.TEACHER,
       passwordHash: teacherHash,

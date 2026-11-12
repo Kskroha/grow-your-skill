@@ -4,14 +4,7 @@
 
 Стек: React (Vite), NestJS, PostgreSQL, Prisma.
 
-## Вход учителя
-
-После `npm run setup` или первого `docker compose up`:
-
-- почта: `teacher@grow.local`
-- пароль: `teacher123`
-
-Учеников создаёт только учитель из своего кабинета. Смените пароль учителя после первого входа на своём сервере.
+Учеников создаёт только учитель из своего кабинета. Почта и пароль учителя задаются в `.env` (`TEACHER_EMAIL`, `TEACHER_PASSWORD`) и в репозиторий не попадают.
 
 ## Локальный запуск
 
@@ -32,11 +25,10 @@ npm run dev:web
 
 ```bash
 cp .env.example .env
-# задайте JWT_SECRET
 docker compose up --build -d
 ```
 
-Сайт: порт `8080`, API: `3000`. При старте API накатывает миграции и создаёт аккаунт учителя.
+Сайт: порт `8080`, API: `3000`. Перед запуском заполните `.env`: `JWT_SECRET`, `TEACHER_EMAIL`, `TEACHER_PASSWORD`. При старте API накатывает миграции и создаёт аккаунт учителя.
 
 Образы собираются автоматически в GitHub Actions при пуше в `main` и публикуются в GitHub Container Registry.
 
