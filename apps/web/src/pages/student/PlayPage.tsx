@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api.ts'
-import { Button } from '../../components/ui.tsx'
+import { Button, ResultNav } from '../../components/ui.tsx'
 import type { Assignment, FillItem, FlashCard, McItem, PlayProgress } from '../../types.ts'
 import { VocabPackPlay } from './VocabPackPlay.tsx'
 
@@ -169,7 +169,6 @@ export function PlayPage() {
   }
 
   const exercise = assignment.exercise
-  const quiz = exercise.type === 'MULTIPLE_CHOICE' || exercise.type === 'FILL_BLANK'
   const allAnswered =
     exercise.type === 'FLASHCARDS'
       ? marked.length > 0 && marked.every(Boolean)
@@ -224,6 +223,9 @@ export function PlayPage() {
             {leaving ? 'Выхожу…' : 'Выйти'}
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-[16px] font-semibold">{exercise.title}</h1>
+          <p className="text-[13px] text-ink-soft">
+            {step + 1} из {Math.max(sections.length, 1)}
+          </p>
           {practice ? (
             <span className="text-[12px] font-medium text-ink-soft">Повтор</span>
           ) : (
@@ -286,12 +288,18 @@ export function PlayPage() {
                   })}
                 </div>
                 {currentFeedback ? (
-                  <p className={`mt-4 text-[15px] font-medium ${currentFeedback.correct ? 'text-mint' : 'text-seal'}`}>
-                    {currentFeedback.correct
-                      ? 'Верно'
-                      : `Правильный ответ: ${currentFeedback.expected}`}
-                  </p>
-                ) : null}
+                  <ResultNav
+                    correct={currentFeedback.correct}
+                    expected={currentFeedback.expected}
+                    last={last}
+                    pending={pending}
+                    onNext={goNext}
+                    onDone={() => void submit()}
+                    doneLabel="Завершить"
+                  />
+                ) : (
+                  <p className="mt-3 text-[13px] text-ink-soft">Выберите ответ</p>
+                )}
               </div>
             ) : null}
 
@@ -321,13 +329,25 @@ export function PlayPage() {
                     }
                   }}
                 />
-                {currentFeedback ? (
-                  <p className={`mt-4 text-[15px] font-medium ${currentFeedback.correct ? 'text-mint' : 'text-seal'}`}>
-                    {currentFeedback.correct
-                      ? 'Верно'
-                      : `Правильный ответ: ${currentFeedback.expected}`}
-                  </p>
-                ) : null}
+                {!currentFeedback ? (
+                  <Button
+                    className="mt-3"
+                    onClick={() => void checkCurrent({ text: texts[step] })}
+                    disabled={pending || !texts[step]?.trim()}
+                  >
+                    {pending ? 'Проверяю…' : 'Проверить'}
+                  </Button>
+                ) : (
+                  <ResultNav
+                    correct={currentFeedback.correct}
+                    expected={currentFeedback.expected}
+                    last={last}
+                    pending={pending}
+                    onNext={goNext}
+                    onDone={() => void submit()}
+                    doneLabel="Завершить"
+                  />
+                )}
               </div>
             ) : null}
 
@@ -356,41 +376,16 @@ export function PlayPage() {
                     Знаю
                   </Button>
                 </div>
+                {last && allAnswered ? (
+                  <Button className="mt-3" onClick={() => void submit()} disabled={pending}>
+                    {pending ? 'Сохраняю…' : 'Завершить'}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
 
             {error ? <p className="mt-4 text-seal">{error}</p> : null}
           </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-line bg-paper px-4 py-3">
-          <p className="text-[13px] text-ink-soft">
-            {step + 1} из {Math.max(sections.length, 1)}
-          </p>
-          {quiz ? (
-            currentFeedback ? (
-              last ? (
-                <Button onClick={submit} disabled={pending || !allAnswered}>
-                  {pending ? 'Сохраняю…' : 'Завершить'}
-                </Button>
-              ) : (
-                <Button onClick={goNext}>Дальше</Button>
-              )
-            ) : exercise.type === 'FILL_BLANK' ? (
-              <Button
-                onClick={() => void checkCurrent({ text: texts[step] })}
-                disabled={pending || !texts[step]?.trim()}
-              >
-                {pending ? 'Проверяю…' : 'Проверить'}
-              </Button>
-            ) : (
-              <p className="text-[13px] text-ink-soft">Выберите ответ</p>
-            )
-          ) : (
-            <Button onClick={submit} disabled={pending || !allAnswered}>
-              {pending ? 'Проверяю…' : 'Завершить'}
-            </Button>
-          )}
         </div>
       </div>
 

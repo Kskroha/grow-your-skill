@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api.ts'
-import { Button } from '../../components/ui.tsx'
+import { Button, ResultNav } from '../../components/ui.tsx'
 import type { Assignment, PlayProgress, PracticeTool } from '../../types.ts'
 
 type Feedback = { correct: boolean; expected: string; expectedId?: string }
@@ -428,6 +428,11 @@ function ToolPlayer({
               Знаю
             </Button>
           </div>
+          {last && state.marked?.[step] ? (
+            <Button className="mt-3" onClick={onBack}>
+              К теме
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -467,6 +472,16 @@ function ToolPlayer({
               )
             })}
           </div>
+          {feedback ? (
+            <ResultNav
+              correct={feedback.correct}
+              expected={feedback.expected}
+              last={last}
+              onNext={goNext}
+              onDone={onBack}
+              doneLabel="К теме"
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -492,13 +507,22 @@ function ToolPlayer({
           />
           {!feedback ? (
             <Button
-              className="mt-4"
+              className="mt-3"
               disabled={pending || !state.texts?.[step]?.trim()}
               onClick={() => onCheck(step, { text: state.texts?.[step] })}
             >
               Проверить
             </Button>
-          ) : null}
+          ) : (
+            <ResultNav
+              correct={feedback.correct}
+              expected={feedback.expected}
+              last={last}
+              onNext={goNext}
+              onDone={onBack}
+              doneLabel="К теме"
+            />
+          )}
         </div>
       ) : null}
 
@@ -515,10 +539,19 @@ function ToolPlayer({
             </p>
           </div>
           {!feedback ? (
-            <Button className="mt-6" disabled={listening || pending} onClick={() => onListen(step)}>
+            <Button className="mt-4" disabled={listening || pending} onClick={() => onListen(step)}>
               {listening ? 'Слушаю корейскую речь…' : 'Нажать и сказать'}
             </Button>
-          ) : null}
+          ) : (
+            <ResultNav
+              correct={feedback.correct}
+              expected={feedback.expected}
+              last={last}
+              onNext={goNext}
+              onDone={onBack}
+              doneLabel="К теме"
+            />
+          )}
         </div>
       ) : null}
 
@@ -555,38 +588,15 @@ function ToolPlayer({
             </Button>
           </div>
           {feedback ? (
-            <div className="mt-3">
-              <p className={`text-[15px] font-medium ${feedback.correct ? 'text-mint' : 'text-seal'}`}>
-                {feedback.correct ? 'Верно' : `Правильный ответ: ${feedback.expected}`}
-              </p>
-              {last ? (
-                <Button className="mt-2" onClick={onBack}>
-                  К теме
-                </Button>
-              ) : (
-                <Button className="mt-2" onClick={goNext}>
-                  Дальше
-                </Button>
-              )}
-            </div>
+            <ResultNav
+              correct={feedback.correct}
+              expected={feedback.expected}
+              last={last}
+              onNext={goNext}
+              onDone={onBack}
+              doneLabel="К теме"
+            />
           ) : null}
-        </div>
-      ) : null}
-
-      {feedback && tool !== 'YES_NO' && tool !== 'FLASHCARDS' ? (
-        <div className="mt-5">
-          <p className={`text-[15px] font-medium ${feedback.correct ? 'text-mint' : 'text-seal'}`}>
-            {feedback.correct ? 'Верно' : `Правильный ответ: ${feedback.expected}`}
-          </p>
-          {last ? (
-            <Button className="mt-4" onClick={onBack}>
-              К теме
-            </Button>
-          ) : (
-            <Button className="mt-4" onClick={goNext}>
-              Дальше
-            </Button>
-          )}
         </div>
       ) : null}
     </div>

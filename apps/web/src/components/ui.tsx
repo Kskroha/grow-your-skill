@@ -314,6 +314,41 @@ export function Button({
   )
 }
 
+export function ResultNav({
+  correct,
+  expected,
+  last,
+  onNext,
+  onDone,
+  doneLabel = 'Завершить',
+  pending,
+}: {
+  correct: boolean
+  expected?: string
+  last: boolean
+  onNext: () => void
+  onDone: () => void
+  doneLabel?: string
+  pending?: boolean
+}) {
+  return (
+    <div className="result-nav mt-4 text-left">
+      <div className={`result-banner ${correct ? 'result-banner--ok' : 'result-banner--no'}`}>
+        <span className="result-mark" aria-hidden>
+          {correct ? '✓' : '→'}
+        </span>
+        <div className="min-w-0">
+          <p className="result-title">{correct ? 'Верно!' : 'Правильный ответ'}</p>
+          {!correct && expected ? <p className="hangul result-answer">{expected}</p> : null}
+        </div>
+      </div>
+      <Button className="mt-3" disabled={pending} onClick={last ? onDone : onNext}>
+        {pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
+      </Button>
+    </div>
+  )
+}
+
 export function Block({
   title,
   action,

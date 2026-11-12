@@ -12,12 +12,18 @@ function loadEnvFile(path: string) {
     if (eq < 0) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim();
-    if (process.env[key] == null) process.env[key] = value;
+    if (!process.env[key]) process.env[key] = value;
   }
 }
 
-loadEnvFile(resolve(__dirname, '../../.env'));
-loadEnvFile(resolve(__dirname, '../.env'));
+for (const path of [
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), '../.env'),
+  resolve(__dirname, '../../.env'),
+  resolve(__dirname, '../.env'),
+]) {
+  loadEnvFile(path);
+}
 
 const prisma = new PrismaClient();
 
@@ -117,6 +123,33 @@ async function main() {
       kind: TopicKind.VOCABULARY,
       authorId: teacher.id,
       words: foodWords,
+    },
+  });
+
+  const euIrregularWords = [
+    { ko: '크다', ru: 'большой', roman: 'keuda' },
+    { ko: '쓰다', ru: 'писать', roman: 'sseuda' },
+    { ko: '아프다', ru: 'болит', roman: 'apeuda' },
+    { ko: '바쁘다', ru: 'занят', roman: 'bappeuda' },
+    { ko: '나쁘다', ru: 'плохой', roman: 'nappeuda' },
+    { ko: '예쁘다', ru: 'красивая', roman: 'yeppeuda' },
+    { ko: '배고프다', ru: 'голодный', roman: 'baegopeuda' },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: 'topic_eu_irregular' },
+    update: {
+      title: 'Нерегулярные глаголы на 으',
+      description: 'ㅡ-неправильные: при спряжении ㅡ выпадает (크다 → 커요).',
+      words: euIrregularWords,
+    },
+    create: {
+      id: 'topic_eu_irregular',
+      title: 'Нерегулярные глаголы на 으',
+      description: 'ㅡ-неправильные: при спряжении ㅡ выпадает (크다 → 커요).',
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: euIrregularWords,
     },
   });
 
