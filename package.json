@@ -1,0 +1,22 @@
+{
+  "name": "grow-your-skill",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev:api & npm run dev:web",
+    "dev:api": "npm run start:dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w api && npm run build -w web",
+    "db:up": "docker compose up db -d",
+    "db:migrate": "npm run prisma:migrate -w api",
+    "db:seed": "npm run prisma:seed -w api",
+    "db:reset": "npm run prisma:reset -w api",
+    "setup": "docker compose up db -d && npm install && npm run prisma:generate -w api && npm run prisma:deploy -w api && npm run prisma:seed -w api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
