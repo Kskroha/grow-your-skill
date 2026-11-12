@@ -21,15 +21,17 @@ npm run dev:web
 
 ## Деплой
 
-Один сервер с Docker:
+Публичный сайт на Render (один адрес для кабинета и API):
+
+[Деплой на Render](https://render.com/deploy?repo=https://github.com/Kskroha/grow-your-skill)
+
+После создания сервиса ссылка будет вида `https://grow-your-skill.onrender.com`. В Environment на Render задайте `TEACHER_EMAIL` и `TEACHER_PASSWORD`.
+
+Локально через Docker:
 
 ```bash
 cp .env.example .env
 docker compose up --build -d
 ```
 
-Сайт: порт `8080`, API: `3000`. Перед запуском заполните `.env`: `JWT_SECRET`, `TEACHER_EMAIL`, `TEACHER_PASSWORD`. При старте API накатывает миграции и создаёт аккаунт учителя.
-
-Образы собираются автоматически в GitHub Actions при пуше в `main` и публикуются в GitHub Container Registry.
-
-Бэкап базы: `docker compose exec db pg_dump -U grow grow > backup.sql`.
+Сайт: порт `8080`. Перед запуском заполните `.env`: `JWT_SECRET`, `TEACHER_EMAIL`, `TEACHER_PASSWORD`.
