@@ -1,9 +1,9 @@
 export const PRACTICE_TOOLS = [
   "FLASHCARDS",
+  "YES_NO",
   "TEST",
   "WRITE",
   "SPEAK",
-  "YES_NO",
 ] as const;
 export type PracticeTool = (typeof PRACTICE_TOOLS)[number];
 
@@ -57,7 +57,13 @@ export function parseWords(value: unknown): VocabWord[] {
 
 export function parseTools(value: unknown): PracticeTool[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.map(String).filter(isPracticeTool))];
+  const picked = new Set(value.map(String).filter(isPracticeTool));
+  return PRACTICE_TOOLS.filter((tool) => picked.has(tool));
+}
+
+export function orderedTools(tools: PracticeTool[]) {
+  const picked = new Set(tools);
+  return PRACTICE_TOOLS.filter((tool) => picked.has(tool));
 }
 
 function shuffle<T>(items: T[]) {
@@ -126,7 +132,7 @@ export function buildPackPayload(
       ),
     };
   }
-  return { words, tools, activities };
+  return { words, tools: orderedTools(tools), activities };
 }
 
 export function packActivityCount(payload: PackPayload, tool: PracticeTool) {
@@ -147,22 +153,68 @@ export function packTotalCount(payload: PackPayload) {
 type ToolProgress = {
   done?: boolean;
   marked?: boolean[];
-  feedback?: Array<unknown | null>;
+  known?: boolean[];
+  feedback?: Array<{ correct?: boolean } | null | undefined>;
 };
 
-export function packProgressPercent(payload: PackPayload, progress: unknown) {
-  const total = packTotalCount(payload);
-  if (!total) return 0;
+export const PACK_PASS_RATIO = 0.85;
+
+export function toolAnswerStats(
+  tool: PracticeTool,
+  saved: ToolProgress,
+  total: number,
+) {
+  if (tool === "FLASHCARDS") {
+    const marked = saved.marked ?? [];
+    const known = saved.known ?? [];
+    const answered = marked.filter(Boolean).length;
+    const correct = marked.reduce(
+      (sum, flag, index) => sum + (flag && known[index] ? 1 : 0),
+      0,
+    );
+    return { total, answered, correct };
+  }
+  const feedback = saved.feedback ?? [];
+  const answered = feedback.filter(Boolean).length;
+  const correct = feedback.filter((item) => Boolean(item?.correct)).length;
+  return { total, answered, correct };
+}
+
+export function toolHasPassed(
+  tool: PracticeTool,
+  saved: ToolProgress,
+  total: number,
+) {
+  const stats = toolAnswerStats(tool, saved, total);
+  return (
+    stats.total > 0 &&
+    stats.answered >= stats.total &&
+    stats.correct / stats.total >= PACK_PASS_RATIO
+  );
+}
+
+export function packOverallStats(payload: PackPayload, progress: unknown) {
   const tools =
     progress && typeof progress === "object" && !Array.isArray(progress)
       ? ((progress as { tools?: Record<string, ToolProgress> }).tools ?? {})
       : {};
-  let done = 0;
-  for (const tool of payload.tools) {
-    const saved = tools[tool] ?? {};
-    done += (saved.feedback ?? saved.marked ?? []).filter(Boolean).length;
+  let total = 0;
+  let answered = 0;
+  let correct = 0;
+  for (const tool of orderedTools(payload.tools)) {
+    const count = packActivityCount(payload, tool);
+    const stats = toolAnswerStats(tool, tools[tool] ?? {}, count);
+    total += stats.total;
+    answered += stats.answered;
+    correct += stats.correct;
   }
-  return Math.round((Math.min(done, total) / total) * 100);
+  return { total, answered, correct };
+}
+
+export function packProgressPercent(payload: PackPayload, progress: unknown) {
+  const stats = packOverallStats(payload, progress);
+  if (!stats.total) return 0;
+  return Math.round((Math.min(stats.correct, stats.total) / stats.total) * 100);
 }
 
 export function packToolSummaries(payload: PackPayload, progress: unknown) {
@@ -170,18 +222,19 @@ export function packToolSummaries(payload: PackPayload, progress: unknown) {
     progress && typeof progress === "object" && !Array.isArray(progress)
       ? ((progress as { tools?: Record<string, ToolProgress> }).tools ?? {})
       : {};
-  return payload.tools.map((tool) => {
+  return orderedTools(payload.tools).map((tool) => {
     const saved = tools[tool] ?? {};
     const total = packActivityCount(payload, tool);
-    const answered = (saved.feedback ?? saved.marked ?? []).filter(
-      Boolean,
-    ).length;
+    const stats = toolAnswerStats(tool, saved, total);
+    const finished = stats.total > 0 && stats.answered >= stats.total;
+    const passed = toolHasPassed(tool, saved, total);
     return {
       key: tool,
       label: TOOL_LABELS[tool],
-      done: Boolean(saved.done) || (total > 0 && answered >= total),
+      done: passed,
+      needsRetry: finished && !passed,
       percent: total
-        ? Math.round((Math.min(answered, total) / total) * 100)
+        ? Math.round((Math.min(stats.correct, total) / total) * 100)
         : 0,
     };
   });
