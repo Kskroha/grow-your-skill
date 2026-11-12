@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --color-paper: #ffffff;
+  --color-ink: #141414;
+  --color-ink-soft: #6b6b6b;
+  --color-cedar: #1a1a1a;
+  --color-cedar-dark: #000000;
+  --color-seal: #b91c1c;
+  --color-line: #e5e5e5;
+  --color-cream: #ffffff;
+  --color-navy: #141414;
+  --color-blush: #f2f2f2;
+  --color-mint: #15803d;
+}
+
+html[data-theme='black'] {
+  --color-ink: #141414;
+  --color-ink-soft: #6b6b6b;
+  --color-cedar: #1a1a1a;
+  --color-cedar-dark: #000000;
+  --color-line: #e5e5e5;
+  --color-navy: #141414;
+  --color-blush: #f2f2f2;
+}
+
+html[data-theme='pink'] {
+  --color-ink: #1c1418;
+  --color-ink-soft: #7a5a68;
+  --color-cedar: #e85a8c;
+  --color-cedar-dark: #c93d6e;
+  --color-line: #edd0db;
+  --color-navy: #1c1418;
+  --color-blush: #fde8f0;
+}
+
+html[data-theme='teal'] {
+  --color-ink: #14201f;
+  --color-ink-soft: #5a6e6c;
+  --color-cedar: #1aa7a1;
+  --color-cedar-dark: #148882;
+  --color-line: #c9e0dd;
+  --color-navy: #14201f;
+  --color-blush: #e3f6f4;
+}
+
+html[data-theme='blue'] {
+  --color-ink: #141820;
+  --color-ink-soft: #5c6780;
+  --color-cedar: #3b6fe0;
+  --color-cedar-dark: #2c58c4;
+  --color-line: #d0d8ea;
+  --color-navy: #141820;
+  --color-blush: #e7eefc;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+}
+
+.hangul {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  word-break: keep-all;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.stat {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.quiet {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  font: inherit;
+}
+
+a[href],
+button:not(:disabled),
+label,
+summary,
+.pressable,
+.tap:not(:disabled),
+[role="button"],
+[role="option"],
+[role="tab"],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+.tap:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.pressable {
+  transition: background-color 120ms ease;
+}
+
+.pressable:hover {
+  background: var(--color-blush);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-cedar);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-blush);
+  color: var(--color-ink);
+}
