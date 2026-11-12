@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum TopicKind {
+  GRAMMAR
+  VOCABULARY
+}
+
+enum ExerciseType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  FLASHCARDS
+  VOCAB_PACK
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  role         Role
+  teacherId    String?
+  teacher      User?    @relation("TeacherStudents", fields: [teacherId], references: [id], onDelete: SetNull)
+  students     User[]   @relation("TeacherStudents")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  topics       Topic[]
+  exercises    Exercise[]
+  assignedToMe Assignment[]      @relation("StudentAssignments")
+  assignedByMe Assignment[]      @relation("TeacherAssignments")
+  attempts     Attempt[]
+  achievements UserAchievement[]
+  visits       ActivityEvent[]
+}
+
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Topic {
+  id          String     @id @default(cuid())
+  title       String
+  description String     @default("")
+  kind        TopicKind
+  words       Json       @default("[]")
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id])
+  exercises   Exercise[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Exercise {
+  id          String       @id @default(cuid())
+  title       String
+  prompt      String       @default("")
+  type        ExerciseType
+  payload     Json
+  topicId     String
+  topic       Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id])
+  assignments Assignment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Assignment {
+  id          String           @id @default(cuid())
+  studentId   String
+  student     User             @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     User             @relation("TeacherAssignments", fields: [teacherId], references: [id])
+  exerciseId  String
+  exercise    Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  status      AssignmentStatus @default(ASSIGNED)
+  bestScore   Int?
+  progress    Json?
+  dueAt       DateTime?
+  createdAt   DateTime         @default(now())
+  completedAt DateTime?
+  attempts    Attempt[]
+
+  @@index([studentId])
+  @@index([teacherId])
+}
+
+model Attempt {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers      Json
+  score        Int
+  maxScore     Int
+  review       Json
+  createdAt    DateTime   @default(now())
+
+  @@index([studentId])
+  @@index([assignmentId])
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  title       String
+  description String
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  earnedAt      DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
