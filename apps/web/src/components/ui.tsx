@@ -322,6 +322,7 @@ export function ResultNav({
   onDone,
   doneLabel = 'Завершить',
   pending,
+  align = 'start',
 }: {
   correct: boolean
   expected?: string
@@ -330,7 +331,22 @@ export function ResultNav({
   onDone: () => void
   doneLabel?: string
   pending?: boolean
+  align?: 'start' | 'center'
 }) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Enter' || event.isComposing || pending) return
+      const tag = (event.target as HTMLElement | null)?.tagName
+      if (tag === 'TEXTAREA') return
+      if (tag === 'INPUT' && !(event.target as HTMLInputElement).disabled) return
+      event.preventDefault()
+      if (last) onDone()
+      else onNext()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [last, onDone, onNext, pending])
+
   return (
     <div className="result-nav mt-4 text-left">
       <div className={`result-banner ${correct ? 'result-banner--ok' : 'result-banner--no'}`}>
@@ -342,9 +358,11 @@ export function ResultNav({
           {!correct && expected ? <p className="hangul result-answer">{expected}</p> : null}
         </div>
       </div>
-      <Button className="mt-3" disabled={pending} onClick={last ? onDone : onNext}>
-        {pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
-      </Button>
+      <div className={`mt-3 ${align === 'center' ? 'flex justify-center' : ''}`}>
+        <Button disabled={pending} onClick={last ? onDone : onNext}>
+          {pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
+        </Button>
+      </div>
     </div>
   )
 }

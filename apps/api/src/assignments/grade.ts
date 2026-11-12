@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ExerciseType } from '@prisma/client';
-import { asPackPayload, type PracticeTool } from './vocab-pack';
+import { asPackPayload, orderedTools, PACK_PASS_RATIO, type PracticeTool } from './vocab-pack';
 
 export type GradeResult = {
   score: number;
@@ -94,7 +94,7 @@ export function gradeExercise(
       tools?: Record<string, { selected?: string[]; texts?: string[]; heard?: string[]; answers?: boolean[]; known?: boolean[]; marked?: boolean[] }>
     };
     const review: GradeResult['review']['items'] = [];
-    for (const tool of pack.tools as PracticeTool[]) {
+    for (const tool of orderedTools(pack.tools as PracticeTool[])) {
       if (tool === 'TEST' && pack.activities.TEST) {
         const selected = submitted.tools?.TEST?.selected ?? [];
         pack.activities.TEST.items.forEach((item, index) => {
@@ -143,7 +143,13 @@ export function gradeExercise(
       }
     }
     const score = review.filter((item) => item.correct).length;
-    return { score, maxScore: review.length || 1, review: { items: review } };
+    const maxScore = review.length || 1;
+    if (maxScore > 0 && score / maxScore < PACK_PASS_RATIO) {
+      throw new BadRequestException(
+        'Чтобы завершить тему, нужно не меньше 85% верных ответов. Повторите ошибки.',
+      );
+    }
+    return { score, maxScore, review: { items: review } };
   }
 
   if (type === ExerciseType.FLASHCARDS) {

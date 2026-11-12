@@ -9,7 +9,9 @@ import { AppModule } from './app.module';
 import { ensureUploadDirs, UPLOADS_DIR } from './uploads';
 
 if (process.env.DATABASE_URL && !/sslmode=/i.test(process.env.DATABASE_URL)) {
-  process.env.DATABASE_URL += (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'sslmode=require';
+  const local = /localhost|127\.0\.0\.1/i.test(process.env.DATABASE_URL);
+  process.env.DATABASE_URL +=
+    (process.env.DATABASE_URL.includes('?') ? '&' : '?') + (local ? 'sslmode=disable' : 'sslmode=require');
 }
 
 async function bootstrap() {

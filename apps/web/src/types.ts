@@ -19,6 +19,7 @@ export type PackToolSummary = {
   label: string
   done: boolean
   percent: number
+  needsRetry?: boolean
 }
 
 export type Topic = {
@@ -89,6 +90,8 @@ export type PlayProgress = {
   marked?: boolean[]
   answers?: boolean[]
   done?: boolean
+  retry?: boolean
+  queue?: number[]
   currentTool?: PracticeTool | null
   tools?: Partial<Record<PracticeTool, PlayProgress>>
   feedback?: Array<{ correct: boolean; expected: string; expectedId?: string } | null>

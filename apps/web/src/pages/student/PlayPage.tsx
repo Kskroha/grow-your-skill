@@ -355,18 +355,16 @@ export function PlayPage() {
               <div>
                 <button
                   type="button"
-                  className="w-full rounded-2xl bg-blush px-6 py-14 text-center"
+                  className="flash-face w-full"
                   onClick={() => setFlipped((value) => !value)}
                 >
                   <div
-                    className={`${flipped ? '' : 'hangul '}text-[40px] font-medium leading-none`}
+                    className={`flash-word ${flipped ? '' : 'hangul'}`}
                     lang={flipped ? undefined : 'ko'}
                   >
                     {flipped ? cards[step].back : cards[step].front}
                   </div>
-                  {cards[step].hint && !flipped ? (
-                    <div className="mt-3 text-ink-soft">{cards[step].hint}</div>
-                  ) : null}
+                  <div className="flash-hint">{cards[step].hint && !flipped ? cards[step].hint : ' '}</div>
                 </button>
                 <div className="mt-4 flex gap-2">
                   <Button tone="ghost" disabled={!flipped && !marked[step]} onClick={() => markCard(false)}>

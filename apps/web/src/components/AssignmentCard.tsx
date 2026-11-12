@@ -43,7 +43,11 @@ export function AssignmentCard({
   return (
     <article
       className={`flex flex-col rounded-2xl border p-4 ${
-        done ? 'border-mint/30 bg-mint/[0.07]' : 'border-line bg-paper'
+        done
+          ? 'border-mint/30 bg-mint/[0.07]'
+          : tools?.some((tool) => tool.needsRetry)
+            ? 'border-amber-300/70 bg-amber-50/60'
+            : 'border-line bg-paper'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -65,10 +69,25 @@ export function AssignmentCard({
             <ul className="mt-3 space-y-1">
               {tools.map((tool) => (
                 <li key={tool.key} className="flex items-center gap-2 text-[13px]">
-                  <span className={tool.done || done ? 'text-mint' : 'text-ink-soft'}>
-                    {tool.done || done ? '✓' : '○'}
+                  <span
+                    className={
+                      tool.done || done
+                        ? 'text-mint'
+                        : tool.needsRetry
+                          ? 'text-amber-600'
+                          : 'text-ink-soft'
+                    }
+                  >
+                    {tool.done || done ? '✓' : tool.needsRetry ? '!' : '○'}
                   </span>
-                  <span className={tool.done || done ? 'text-ink' : 'text-ink-soft'}>{tool.label}</span>
+                  <span
+                    className={
+                      tool.done || done ? 'text-ink' : tool.needsRetry ? 'text-amber-800' : 'text-ink-soft'
+                    }
+                  >
+                    {tool.label}
+                    {tool.needsRetry ? ' · повторить ошибки' : ''}
+                  </span>
                 </li>
               ))}
             </ul>

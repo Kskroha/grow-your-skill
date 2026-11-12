@@ -13,10 +13,10 @@ import type { Assignment, Exercise, PracticeTool, ProgressPayload, Topic } from 
 
 const packTools: Array<{ key: PracticeTool; label: string }> = [
   { key: 'FLASHCARDS', label: 'Карточки' },
+  { key: 'YES_NO', label: '네 / 아니요' },
   { key: 'TEST', label: 'Тест' },
   { key: 'WRITE', label: 'Напиши слово' },
   { key: 'SPEAK', label: 'Скажи слово' },
-  { key: 'YES_NO', label: '네 / 아니요' },
 ]
 
 export function StudentDetailPage() {
@@ -27,7 +27,7 @@ export function StudentDetailPage() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [picked, setPicked] = useState<string[]>([])
   const [packTopic, setPackTopic] = useState('')
-  const [pickedTools, setPickedTools] = useState<PracticeTool[]>(['FLASHCARDS', 'TEST', 'WRITE', 'SPEAK', 'YES_NO'])
+  const [pickedTools, setPickedTools] = useState<PracticeTool[]>(['FLASHCARDS', 'YES_NO', 'TEST', 'WRITE', 'SPEAK'])
   const [error, setError] = useState('')
 
   async function load() {
@@ -153,11 +153,12 @@ export function StudentDetailPage() {
                     type="checkbox"
                     checked={pickedTools.includes(tool.key)}
                     onChange={(event) => {
-                      setPickedTools((current) =>
-                        event.target.checked
+                      setPickedTools((current) => {
+                        const next = event.target.checked
                           ? [...current, tool.key]
-                          : current.filter((value) => value !== tool.key),
-                      )
+                          : current.filter((value) => value !== tool.key)
+                        return packTools.map((item) => item.key).filter((key) => next.includes(key))
+                      })
                     }}
                   />
                   <span className="text-[13px]">{tool.label}</span>

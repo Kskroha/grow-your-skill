@@ -30,6 +30,7 @@ import {
   parseWords,
   packActivityCount,
   packToolSummaries,
+  toolHasPassed,
   type PracticeTool,
 } from './vocab-pack';
 
@@ -438,7 +439,7 @@ export class AssignmentsService {
         ...slot,
         step: dto.index,
         feedback,
-        done: feedback.every(Boolean),
+        done: toolHasPassed(tool, { ...slot, feedback }, count),
       };
       await this.prisma.assignment.update({
         where: { id: assignment.id },

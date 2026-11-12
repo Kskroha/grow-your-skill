@@ -14,6 +14,57 @@ const labels: Record<PracticeTool, string> = {
   YES_NO: '네 / 아니요',
 }
 
+const TOOL_ORDER: PracticeTool[] = ['FLASHCARDS', 'YES_NO', 'TEST', 'WRITE', 'SPEAK']
+const PASS_RATIO = 0.85
+
+function range(count: number) {
+  return Array.from({ length: count }, (_, index) => index)
+}
+
+function isAnswered(tool: PracticeTool, state: PlayProgress, index: number) {
+  if (tool === 'FLASHCARDS') return Boolean(state.marked?.[index])
+  return Boolean(state.feedback?.[index])
+}
+
+function isCorrect(tool: PracticeTool, state: PlayProgress, index: number) {
+  if (tool === 'FLASHCARDS') return Boolean(state.marked?.[index] && state.known?.[index])
+  return Boolean(state.feedback?.[index]?.correct)
+}
+
+function toolStats(tool: PracticeTool, state: PlayProgress, total: number) {
+  const answered = range(total).filter((index) => isAnswered(tool, state, index)).length
+  const correct = range(total).filter((index) => isCorrect(tool, state, index)).length
+  const finished = total > 0 && answered >= total
+  const passed = finished && correct / total >= PASS_RATIO
+  return { answered, correct, total, finished, passed, needsRetry: finished && !passed }
+}
+
+function wrongIndices(tool: PracticeTool, state: PlayProgress, total: number) {
+  return range(total).filter((index) => !isCorrect(tool, state, index))
+}
+
+function activeQueue(state: PlayProgress, total: number) {
+  return state.queue?.length ? state.queue : range(total)
+}
+
+function resetWrong(tool: PracticeTool, state: PlayProgress, wrong: number[]): PlayProgress {
+  const next = { ...state, retry: true, queue: wrong, step: wrong[0] ?? 0, done: false }
+  if (tool === 'FLASHCARDS') {
+    next.marked = [...(state.marked ?? [])]
+    next.known = [...(state.known ?? [])]
+    for (const index of wrong) {
+      next.marked[index] = false
+      next.known[index] = false
+    }
+    return next
+  }
+  next.feedback = [...(state.feedback ?? [])]
+  for (const index of wrong) {
+    next.feedback[index] = null
+  }
+  return next
+}
+
 function emptyTool(count: number): PlayProgress {
   return {
     step: 0,
@@ -31,7 +82,7 @@ function emptyTool(count: number): PlayProgress {
 export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
   const navigate = useNavigate()
   const pack = assignment.exercise.payload
-  const tools = (pack.tools ?? []) as PracticeTool[]
+  const tools = TOOL_ORDER.filter((tool) => ((pack.tools ?? []) as PracticeTool[]).includes(tool))
   const [progress, setProgress] = useState<PlayProgress>(
     assignment.status === 'COMPLETED'
       ? { tools: {} }
@@ -100,13 +151,14 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
       const count = countFor(tool)
       const feedback = Array.from({ length: count }, (_, item) => current.feedback?.[item] ?? null)
       feedback[index] = result
-      const done = count > 0 && feedback.every(Boolean)
+      const nextState = { ...current, feedback, step: index }
+      const stats = toolStats(tool, nextState, count)
       update({
         ...progress,
         currentTool: tool,
         tools: {
           ...progress.tools,
-          [tool]: { ...current, feedback, done, step: index },
+          [tool]: { ...nextState, done: stats.passed },
         },
       })
     } catch (err) {
@@ -116,12 +168,36 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
     }
   }
 
+  function openTool(tool: PracticeTool) {
+    const count = countFor(tool)
+    let state = toolState(tool)
+    const stats = toolStats(tool, state, count)
+    if (stats.needsRetry) {
+      const wrong = wrongIndices(tool, state, count)
+      const unansweredWrong = wrong.filter((index) => !isAnswered(tool, state, index))
+      if (unansweredWrong.length === 0) {
+        state = resetWrong(tool, state, wrong)
+      } else {
+        state = { ...state, retry: true, queue: unansweredWrong, step: unansweredWrong[0], done: false }
+      }
+    }
+    update({ ...progress, currentTool: tool, tools: { ...progress.tools, [tool]: state } })
+  }
+
   async function finishPack() {
-    const cardCount = countFor('FLASHCARDS')
-    const cardMarked = toolState('FLASHCARDS').marked ?? []
-    const cardsAnswered = Array.from({ length: cardCount }, (_, index) => cardMarked[index]).every(Boolean)
-    if (tools.includes('FLASHCARDS') && cardCount > 0 && !cardsAnswered) {
-      setError('Отметьте все карточки, прежде чем завершить')
+    const overall = tools.reduce(
+      (sum, tool) => {
+        const stats = toolStats(tool, toolState(tool), countFor(tool))
+        return {
+          correct: sum.correct + stats.correct,
+          total: sum.total + stats.total,
+          passed: sum.passed && stats.passed,
+        }
+      },
+      { correct: 0, total: 0, passed: true },
+    )
+    if (!overall.passed || (overall.total > 0 && overall.correct / overall.total < PASS_RATIO)) {
+      setError('Чтобы завершить тему, нужно 85% верных ответов. Повторите упражнения с ошибками.')
       return
     }
     setPending(true)
@@ -212,17 +288,13 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
   }
 
   const summaries = tools.map((tool) => {
-    const state = toolState(tool)
-    const total = countFor(tool)
-    const answered =
-      tool === 'FLASHCARDS'
-        ? (state.marked ?? []).filter(Boolean).length
-        : (state.feedback ?? []).filter(Boolean).length
+    const stats = toolStats(tool, toolState(tool), countFor(tool))
     return {
       tool,
       label: labels[tool],
-      done: Boolean(state.done) || (total > 0 && answered >= total),
-      percent: total ? Math.round((answered / total) * 100) : 0,
+      done: stats.passed,
+      needsRetry: stats.needsRetry,
+      percent: stats.total ? Math.round((stats.correct / stats.total) * 100) : 0,
     }
   })
   const allDone = summaries.length > 0 && summaries.every((item) => item.done)
@@ -242,7 +314,7 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
             className="text-[13px] font-medium text-ink-soft hover:text-ink"
             onClick={() => update({ ...progress, currentTool: null })}
           >
-            К теме
+            Все упражнения
           </button>
         ) : null}
       </div>
@@ -250,27 +322,38 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
       <div className="flex-1 overflow-auto p-5 lg:p-8">
         <div className="mx-auto max-w-3xl">
           {!currentTool ? (
-            <div className="rounded-2xl border border-line bg-paper p-5">
-              <p className="text-[14px] text-ink-soft">Выполните инструменты по очереди. Прогресс сохраняется.</p>
-              <div className="mt-4 space-y-2">
+            <div>
+              <p className="mb-3 text-[13px] font-medium text-ink">Список упражнений</p>
+              <div className="space-y-1">
                 {summaries.map((item) => (
                   <button
                     key={item.tool}
                     type="button"
-                    onClick={() => update({ ...progress, currentTool: item.tool })}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left ${
-                      item.done ? 'border-mint/40 bg-mint/[0.06]' : 'border-line hover:bg-blush'
-                    }`}
+                    onClick={() => openTool(item.tool)}
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-blush"
                   >
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] ${
-                        item.done ? 'bg-mint text-white' : 'border border-line text-ink-soft'
+                        item.done
+                          ? 'bg-mint text-white'
+                          : item.needsRetry
+                            ? 'bg-amber-200 text-amber-900'
+                            : 'text-ink-soft'
                       }`}
                     >
-                      {item.done ? '✓' : ''}
+                      {item.done ? '✓' : item.needsRetry ? '!' : '○'}
                     </span>
-                    <span className="flex-1 text-[15px] font-semibold">{item.label}</span>
-                    <span className="text-[12px] text-ink-soft">{item.percent}%</span>
+                    <span className="flex-1 text-[15px] font-semibold">
+                      {item.label}
+                      {item.needsRetry ? ' · повторить ошибки' : ''}
+                    </span>
+                    <span
+                      className={`text-[12px] ${
+                        item.done ? 'text-mint' : item.needsRetry ? 'text-amber-700' : 'text-ink-soft'
+                      }`}
+                    >
+                      {item.percent}%
+                    </span>
                   </button>
                 ))}
               </div>
@@ -357,10 +440,46 @@ function ToolPlayer({
           : tool === 'SPEAK'
             ? speakItems.length
             : yesNoItems.length
-  const last = step >= total - 1
+  const queue = activeQueue(state, total)
+  const queuePos = Math.max(0, queue.indexOf(step))
+  const last = queue.length === 0 || queuePos >= queue.length - 1
 
   function goNext() {
-    onState({ ...state, step: Math.min(total - 1, step + 1) })
+    const nextIndex = queue[queuePos + 1]
+    if (nextIndex === undefined) return
+    onState({ ...state, step: nextIndex })
+  }
+
+  function finishTool() {
+    const stats = toolStats(tool, state, total)
+    if (stats.needsRetry) {
+      onState(resetWrong(tool, state, wrongIndices(tool, state, total)))
+      return
+    }
+    onBack()
+  }
+
+  function markCard(knows: boolean) {
+    const known = [...(state.known ?? [])]
+    const marked = [...(state.marked ?? [])]
+    known[step] = knows
+    marked[step] = true
+    const nextState: PlayProgress = { ...state, known, marked, step }
+    const stats = toolStats(tool, nextState, total)
+    const remaining = queue.filter((index) => index !== step && !marked[index])
+    if (remaining.length === 0) {
+      if (stats.needsRetry) {
+        onState(resetWrong(tool, nextState, wrongIndices(tool, nextState, total)))
+        if (flipped) onFlip()
+        return
+      }
+      onState({ ...nextState, done: stats.passed, retry: false, queue: undefined })
+      if (stats.passed) onBack()
+      return
+    }
+    const nextStep = remaining.find((index) => index > step) ?? remaining[0]
+    if (flipped) onFlip()
+    onState({ ...nextState, step: nextStep, done: stats.passed })
   }
 
   return (
@@ -368,71 +487,30 @@ function ToolPlayer({
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-[18px] font-semibold">{labels[tool]}</h2>
         <p className="text-[13px] text-ink-soft">
-          {step + 1} из {Math.max(total, 1)}
+          {queuePos + 1} из {Math.max(queue.length, 1)}
+          {state.retry ? ' · ошибки' : ''}
         </p>
       </div>
 
       {tool === 'FLASHCARDS' && cards[step] ? (
         <div>
-          <button type="button" className="w-full rounded-2xl bg-blush px-6 py-14 text-center" onClick={onFlip}>
+          <button type="button" className="flash-face w-full" onClick={onFlip}>
             <div
-              className={`${flipped ? '' : 'hangul '}text-[40px] font-medium leading-none`}
+              className={`flash-word ${flipped ? '' : 'hangul'}`}
               lang={flipped ? undefined : 'ko'}
             >
               {flipped ? cards[step].back : cards[step].front}
             </div>
-            {cards[step].hint && !flipped ? (
-              <div className="mt-3 text-ink-soft">{cards[step].hint}</div>
-            ) : null}
+            <div className="flash-hint">{cards[step].hint && !flipped ? cards[step].hint : ' '}</div>
           </button>
           <div className="mt-4 flex gap-2">
-            <Button
-              tone="ghost"
-              disabled={!flipped && !state.marked?.[step]}
-              onClick={() => {
-                const known = [...(state.known ?? [])]
-                const marked = [...(state.marked ?? [])]
-                known[step] = false
-                marked[step] = true
-                const nextStep = last ? step : Math.min(cards.length - 1, step + 1)
-                if (flipped) onFlip()
-                onState({
-                  ...state,
-                  known,
-                  marked,
-                  step: nextStep,
-                  done: marked.filter(Boolean).length >= cards.length,
-                })
-              }}
-            >
+            <Button tone="ghost" disabled={!flipped && !state.marked?.[step]} onClick={() => markCard(false)}>
               Ещё учу
             </Button>
-            <Button
-              disabled={!flipped && !state.marked?.[step]}
-              onClick={() => {
-                const known = [...(state.known ?? [])]
-                const marked = [...(state.marked ?? [])]
-                known[step] = true
-                marked[step] = true
-                const nextStep = last ? step : Math.min(cards.length - 1, step + 1)
-                if (flipped) onFlip()
-                onState({
-                  ...state,
-                  known,
-                  marked,
-                  step: nextStep,
-                  done: marked.filter(Boolean).length >= cards.length,
-                })
-              }}
-            >
+            <Button disabled={!flipped && !state.marked?.[step]} onClick={() => markCard(true)}>
               Знаю
             </Button>
           </div>
-          {last && state.marked?.[step] ? (
-            <Button className="mt-3" onClick={onBack}>
-              К теме
-            </Button>
-          ) : null}
         </div>
       ) : null}
 
@@ -478,8 +556,8 @@ function ToolPlayer({
               expected={feedback.expected}
               last={last}
               onNext={goNext}
-              onDone={onBack}
-              doneLabel="К теме"
+              onDone={finishTool}
+              doneLabel="Все упражнения"
             />
           ) : null}
         </div>
@@ -519,8 +597,8 @@ function ToolPlayer({
               expected={feedback.expected}
               last={last}
               onNext={goNext}
-              onDone={onBack}
-              doneLabel="К теме"
+              onDone={finishTool}
+              doneLabel="Все упражнения"
             />
           )}
         </div>
@@ -548,8 +626,9 @@ function ToolPlayer({
               expected={feedback.expected}
               last={last}
               onNext={goNext}
-              onDone={onBack}
-              doneLabel="К теме"
+              onDone={finishTool}
+              doneLabel="Все упражнения"
+              align="center"
             />
           )}
         </div>
@@ -593,8 +672,9 @@ function ToolPlayer({
               expected={feedback.expected}
               last={last}
               onNext={goNext}
-              onDone={onBack}
-              doneLabel="К теме"
+              onDone={finishTool}
+              doneLabel="Все упражнения"
+              align="center"
             />
           ) : null}
         </div>
