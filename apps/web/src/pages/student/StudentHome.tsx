@@ -51,7 +51,7 @@ export function StudentHome() {
                 Всё сдано — можно повторить выполненное ниже.
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {open.map((item) => (
                   <AssignmentCard
                     key={item.id}
@@ -74,7 +74,7 @@ export function StudentHome() {
               <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-soft">
                 Выполненные
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {done.map((item) => (
                   <AssignmentCard
                     key={item.id}

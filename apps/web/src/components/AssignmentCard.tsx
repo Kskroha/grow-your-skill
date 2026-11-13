@@ -42,7 +42,7 @@ export function AssignmentCard({
 
   return (
     <article
-      className={`flex flex-col rounded-2xl border p-4 ${
+      className={`flex min-h-[220px] flex-col rounded-2xl border p-5 sm:min-h-0 sm:p-4 ${
         done
           ? 'border-mint/30 bg-mint/[0.07]'
           : tools?.some((tool) => tool.needsRetry)
@@ -52,23 +52,23 @@ export function AssignmentCard({
     >
       <div className="flex items-start gap-3">
         {done ? (
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mint text-white">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mint text-white">
             <CheckIcon />
           </span>
         ) : (
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-line">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-line">
             <span className="h-2 w-2 rounded-full bg-line" />
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h3 className="text-[17px] font-semibold leading-snug">{topicTitle}</h3>
+          <h3 className="text-[20px] font-semibold leading-snug sm:text-[17px]">{topicTitle}</h3>
           {tools && tools.length > 0 ? null : (
             <p className="mt-0.5 text-[13px] text-ink-soft">{exerciseTitle}</p>
           )}
           {tools && tools.length > 0 ? (
-            <ul className="mt-3 space-y-1">
+            <ul className="mt-3 space-y-1.5">
               {tools.map((tool) => (
-                <li key={tool.key} className="flex items-center gap-2 text-[13px]">
+                <li key={tool.key} className="flex min-h-7 items-center gap-2 text-[16px] sm:text-[13px]">
                   <span
                     className={
                       tool.done || done
@@ -85,8 +85,8 @@ export function AssignmentCard({
                       tool.done || done ? 'text-ink' : tool.needsRetry ? 'text-amber-800' : 'text-ink-soft'
                     }
                   >
-                    {tool.label}
-                    {tool.needsRetry ? ' · повторить ошибки' : ''}
+                    <span className="hangul">{tool.label}</span>
+                    {tool.needsRetry ? ' · 다시' : ''}
                   </span>
                 </li>
               ))}
@@ -113,7 +113,7 @@ export function AssignmentCard({
         <div className={`flex flex-wrap items-stretch gap-2 ${done ? '' : 'mt-4'}`}>
           <Link
             to={`/student/play/${id}`}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 py-2 text-center text-[14px] font-semibold sm:flex-none ${
+            className={`inline-flex min-h-12 flex-1 items-center justify-center rounded-lg px-4 py-3 text-center text-[16px] font-semibold sm:min-h-11 sm:flex-none sm:py-2 sm:text-[14px] ${
               done
                 ? 'border border-mint/40 bg-paper text-mint hover:bg-mint/10'
                 : 'bg-cedar text-white hover:bg-cedar-dark'
@@ -126,7 +126,7 @@ export function AssignmentCard({
               type="button"
               disabled={pending}
               onClick={() => void restart()}
-              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 py-2 text-[14px] font-semibold text-ink-soft hover:bg-paper hover:text-ink disabled:opacity-60 sm:flex-none"
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg px-4 py-3 text-[16px] font-semibold text-ink-soft hover:bg-paper hover:text-ink disabled:opacity-60 sm:min-h-11 sm:flex-none sm:py-2 sm:text-[14px]"
             >
               {pending ? 'Сбрасываю…' : 'Пройти заново'}
             </button>

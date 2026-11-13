@@ -8,10 +8,10 @@ export const PRACTICE_TOOLS = [
 export type PracticeTool = (typeof PRACTICE_TOOLS)[number];
 
 export const TOOL_LABELS: Record<PracticeTool, string> = {
-  FLASHCARDS: "Карточки",
-  TEST: "Тест",
-  WRITE: "Напиши слово",
-  SPEAK: "Скажи слово",
+  FLASHCARDS: "단어 카드",
+  TEST: "테스트",
+  WRITE: "단어 쓰기",
+  SPEAK: "말하기",
   YES_NO: "네 / 아니요",
 };
 

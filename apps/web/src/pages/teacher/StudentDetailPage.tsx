@@ -12,11 +12,11 @@ import {
 import type { Assignment, Exercise, PracticeTool, ProgressPayload, Topic } from '../../types.ts'
 
 const packTools: Array<{ key: PracticeTool; label: string }> = [
-  { key: 'FLASHCARDS', label: 'Карточки' },
+  { key: 'FLASHCARDS', label: '단어 카드' },
   { key: 'YES_NO', label: '네 / 아니요' },
-  { key: 'TEST', label: 'Тест' },
-  { key: 'WRITE', label: 'Напиши слово' },
-  { key: 'SPEAK', label: 'Скажи слово' },
+  { key: 'TEST', label: '테스트' },
+  { key: 'WRITE', label: '단어 쓰기' },
+  { key: 'SPEAK', label: '말하기' },
 ]
 
 export function StudentDetailPage() {
@@ -117,19 +117,16 @@ export function StudentDetailPage() {
             <h2 className="mb-3 text-[14px] font-semibold">Активность</h2>
             <ActivityHeatmap events={progress.activity} defaultRange="month" />
           </div>
-          <div className="rounded-2xl border border-line bg-paper p-4">
-            <h2 className="mb-3 text-[14px] font-semibold">По типам</h2>
-            <div className="space-y-3">
-              {progress.byKind.map((item) => (
-                <Meter
-                  key={item.kind}
-                  label={item.kind === 'GRAMMAR' ? 'Грамматика' : 'Лексика'}
-                  value={item.completed}
-                  total={item.total}
-                />
-              ))}
+          {progress.byTopic.length > 0 ? (
+            <div className="rounded-2xl border border-line bg-paper p-4">
+              <h2 className="mb-3 text-[14px] font-semibold">По темам</h2>
+              <div className="space-y-3">
+                {progress.byTopic.map((topic) => (
+                  <Meter key={topic.topicId} label={topic.title} value={topic.completed} total={topic.total} />
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div className="rounded-2xl border border-line bg-paper p-4">
             <h2 className="mb-1 text-[14px] font-semibold">Назначить лексику</h2>
             <p className="mb-3 text-[13px] text-ink-soft">Одна карточка с выбранными инструментами.</p>

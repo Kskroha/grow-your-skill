@@ -15,12 +15,24 @@ export type KoreanSpeech = {
   onend: (() => void) | null
 }
 
+function prefersKeyboardDictation() {
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true
+  return false
+}
+
 function speechCtor(): SpeechCtor | null {
+  if (prefersKeyboardDictation()) return null
   const w = window as Window & {
     SpeechRecognition?: SpeechCtor
     webkitSpeechRecognition?: SpeechCtor
   }
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+}
+
+export function hasKoreanSpeech() {
+  return Boolean(speechCtor())
 }
 
 export function startKoreanSpeech(handlers: {

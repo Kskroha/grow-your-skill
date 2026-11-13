@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api.ts'
 import { Button, ResultChip, ResultNav } from '../../components/ui.tsx'
-import { startKoreanSpeech } from '../../speech.ts'
+import { hasKoreanSpeech, startKoreanSpeech } from '../../speech.ts'
 import type { Assignment, PlayProgress, PracticeTool } from '../../types.ts'
 
 type Feedback = { correct: boolean; expected: string; expectedId?: string }
 
 const labels: Record<PracticeTool, string> = {
-  FLASHCARDS: 'Карточки',
-  TEST: 'Тест',
-  WRITE: 'Напиши слово',
-  SPEAK: 'Скажи слово',
+  FLASHCARDS: '단어 카드',
+  TEST: '테스트',
+  WRITE: '단어 쓰기',
+  SPEAK: '말하기',
   YES_NO: '네 / 아니요',
 }
 
@@ -291,19 +291,21 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
       },
       onError: (code) => {
         const messages: Record<string, string> = {
-          'not-allowed': 'Нет доступа к микрофону. Разрешите микрофон для этого сайта.',
-          'no-speech': 'Браузер ничего не услышал. Скажите слово по-корейски и нажмите ещё раз.',
-          'audio-capture': 'Микрофон не найден.',
-          network: 'Распознавание речи недоступно без сети.',
-          'language-not-supported': 'Этот браузер не распознаёт корейский. Проверьте язык диктовки в настройках телефона.',
+          'not-allowed': 'Нет доступа к микрофону. Можно сказать в микрофон корейской клавиатуры в поле ниже.',
+          'no-speech': 'Ничего не услышали. Скажите ещё раз или напишите хангыль в поле.',
+          'audio-capture': 'Микрофон браузера недоступен. Используйте микрофон корейской клавиатуры.',
+          network: 'Голос браузера недоступен без сети. Напишите слово или продиктуйте с клавиатуры.',
+          'language-not-supported': 'Браузер не даёт корейскую диктовку. Откройте корейскую клавиатуру и скажите в её микрофон.',
         }
-        setError(messages[code] ?? 'Не получилось распознать. Нажмите ещё раз.')
+        setError(messages[code] ?? 'Не получилось распознать. Напишите слово или скажите в микрофон корейской клавиатуры.')
       },
       onEnd: () => setListening(false),
     })
     if (!started) {
       setListening(false)
-      setError('Этот браузер не умеет распознавать речь. Откройте задание в Chrome.')
+      window.requestAnimationFrame(() => {
+        document.getElementById('speak-heard')?.focus()
+      })
     }
   }
 
@@ -344,16 +346,16 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
           {!currentTool ? (
             <div>
               <p className="mb-3 text-[13px] font-medium text-ink">Список упражнений</p>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {summaries.map((item) => (
                   <button
                     key={item.tool}
                     type="button"
                     onClick={() => openTool(item.tool)}
-                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-blush"
+                    className="flex min-h-16 w-full items-center gap-3 rounded-2xl px-3 py-3.5 text-left hover:bg-blush sm:min-h-14"
                   >
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-[14px] ${
                         item.done
                           ? 'bg-mint text-white'
                           : item.needsRetry
@@ -363,9 +365,9 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
                     >
                       {item.done ? '✓' : item.needsRetry ? '!' : '○'}
                     </span>
-                    <span className="flex-1 text-[15px] font-semibold">
+                    <span className="hangul flex-1 text-[18px] font-semibold sm:text-[16px]">
                       {item.label}
-                      {item.needsRetry ? ' · повторить ошибки' : ''}
+                      {item.needsRetry ? ' · 다시' : ''}
                     </span>
                     <span
                       className={`text-[12px] ${
@@ -485,6 +487,16 @@ function ToolPlayer({
     startErrorRound(state)
   }
 
+  const feedbackKey = feedback ? `${step}:${feedback.correct}:${feedback.expected}` : ''
+  useEffect(() => {
+    if (tool === 'FLASHCARDS' || !feedbackKey) return
+    const wait = feedback?.correct ? 1100 : 1800
+    const timer = window.setTimeout(() => {
+      goNext()
+    }, wait)
+    return () => window.clearTimeout(timer)
+  }, [feedbackKey, tool])
+
   function markCard(knows: boolean) {
     const current = cardStep
     const known = range(total).map((index) => Boolean(state.known?.[index]))
@@ -544,10 +556,10 @@ function ToolPlayer({
             <div className="flash-hint">{cards[cardStep].hint && !flipped ? cards[cardStep].hint : ' '}</div>
           </button>
           <div className="mt-4 flex justify-end gap-2">
-            <Button tone="ghost" onClick={() => markCard(false)}>
+            <Button className="min-h-12" tone="ghost" onClick={() => markCard(false)}>
               Ещё учу
             </Button>
-            <Button onClick={() => markCard(true)}>
+            <Button className="min-h-12" onClick={() => markCard(true)}>
               Знаю
             </Button>
           </div>
@@ -577,7 +589,7 @@ function ToolPlayer({
                   key={option.id}
                   type="button"
                   disabled={Boolean(feedback) || pending}
-                  className={`rounded-xl border px-4 py-3 text-left ${tone}`}
+                  className={`min-h-14 rounded-xl border px-4 py-4 text-left text-[16px] ${tone}`}
                   onClick={() => {
                     const selected = [...(state.selected ?? [])]
                     selected[step] = option.id
@@ -599,7 +611,7 @@ function ToolPlayer({
               align="end"
             />
           ) : (
-            <div className="mt-6 h-11" />
+            <div className="mt-6 h-14 sm:h-12" />
           )}
         </div>
       ) : null}
@@ -631,8 +643,9 @@ function ToolPlayer({
             }}
           />
           {!feedback ? (
-            <div className="mt-6 flex h-11 justify-end">
+            <div className="mt-6 flex h-14 justify-end sm:h-12">
               <Button
+                className="min-h-12"
                 disabled={pending || !state.texts?.[step]?.trim()}
                 onClick={() => onCheck(step, { text: state.texts?.[step] })}
               >
@@ -654,29 +667,63 @@ function ToolPlayer({
       {tool === 'SPEAK' && speakItems[step] ? (
         <div className="text-center">
           <p className="text-[13px] text-ink-soft">Скажите слово по-корейски.</p>
+          <p className="mt-1 text-[13px] text-ink-soft">
+            На телефоне откройте корейскую клавиатуру: можно диктовать её микрофоном или набрать хангыль.
+          </p>
           <div className="mt-3 text-[32px] font-semibold">{speakItems[step].prompt}</div>
-          <div className="mt-4 flex min-h-[7.5rem] flex-col justify-center rounded-xl border border-line bg-blush px-4 py-5" lang="ko">
+          <div className="mt-4 flex min-h-[7.5rem] flex-col justify-center rounded-xl border border-line bg-blush px-4 py-5">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-soft">Я слышу</p>
-            <p className="hangul mt-3 min-h-12 text-[22px] font-medium" lang="ko">
-              {liveHeard || state.heard?.[step] || (listening ? '…' : '—')}
-            </p>
+            <input
+              id="speak-heard"
+              className="hangul mt-3 min-h-12 w-full bg-transparent text-center text-[22px] font-medium outline-none"
+              lang="ko"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="done"
+              value={listening ? liveHeard || '…' : (state.heard?.[step] ?? '')}
+              disabled={Boolean(feedback) || pending || listening}
+              onChange={(event) => {
+                const heard = [...(state.heard ?? [])]
+                heard[step] = event.target.value
+                onState({ ...state, heard })
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && state.heard?.[step]?.trim() && !feedback) {
+                  event.preventDefault()
+                  onCheck(step, { heard: state.heard[step] })
+                }
+              }}
+            />
           </div>
-          <div className="mt-4 flex min-h-11 items-center justify-center">
-            {!feedback ? (
-              <Button disabled={listening || pending} onClick={() => onListen(step)}>
-                {listening ? 'Слушаю корейскую речь…' : 'Нажать и сказать'}
+          {!feedback ? (
+            <div className="mt-4 flex min-h-14 items-center justify-end gap-2 sm:min-h-12">
+              <Button
+                tone="ghost"
+                disabled={listening || pending}
+                onClick={() => onListen(step)}
+              >
+                {listening ? 'Слушаю…' : hasKoreanSpeech() ? 'Сказать' : 'Клавиатура'}
               </Button>
-            ) : (
-              <ResultNav
-                last={last}
-                onNext={goNext}
-                onDone={finishTool}
-                doneLabel="Все упражнения"
-                align="center"
-                compact
-              />
-            )}
-          </div>
+              <Button
+                disabled={pending || listening || !state.heard?.[step]?.trim()}
+                onClick={() => onCheck(step, { heard: state.heard?.[step] })}
+              >
+                Проверить
+              </Button>
+            </div>
+          ) : (
+            <ResultNav
+              last={last}
+              onNext={goNext}
+              onDone={finishTool}
+              doneLabel="Все упражнения"
+              align="end"
+              compact
+            />
+          )}
         </div>
       ) : null}
 
@@ -689,7 +736,7 @@ function ToolPlayer({
           <div className="mt-2 text-[22px]">{yesNoItems[step].ru}</div>
           <div className="mt-6 flex justify-center gap-2">
             <Button
-              className="min-h-11 min-w-24"
+              className="min-h-12 min-w-28"
               disabled={Boolean(feedback) || pending}
               onClick={() => {
                 const answers = [...(state.answers ?? [])]
@@ -702,7 +749,7 @@ function ToolPlayer({
             </Button>
             <Button
               tone="ghost"
-              className="min-h-11 min-w-24"
+              className="min-h-12 min-w-28"
               disabled={Boolean(feedback) || pending}
               onClick={() => {
                 const answers = [...(state.answers ?? [])]
@@ -720,10 +767,10 @@ function ToolPlayer({
               onNext={goNext}
               onDone={finishTool}
               doneLabel="Все упражнения"
-              align="center"
+              align="end"
             />
           ) : (
-            <div className="mt-6 h-11" />
+            <div className="mt-6 h-14 sm:h-12" />
           )}
         </div>
       ) : null}

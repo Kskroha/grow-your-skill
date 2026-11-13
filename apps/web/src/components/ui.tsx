@@ -9,7 +9,7 @@ import type {
 import type { AssignmentStatus, TopicKind } from '../types.ts'
 
 export function Wordmark() {
-  return <p className="text-[15px] font-semibold leading-none text-ink">Тренажёр</p>
+  return <p className="hangul text-[15px] font-semibold leading-none text-ink">한국어 연습</p>
 }
 
 export function KindBadge({ kind }: { kind: TopicKind }) {
@@ -387,7 +387,7 @@ export function ResultNav({
 
   return (
     <div
-      className={`result-nav flex h-11 ${compact ? '' : 'mt-6'} ${
+      className={`result-nav flex h-14 sm:h-12 ${compact ? '' : 'mt-6'} ${
         align === 'center' ? 'justify-center' : align === 'start' ? 'justify-start' : 'justify-end'
       }`}
     >
@@ -395,7 +395,7 @@ export function ResultNav({
         type="button"
         disabled={pending}
         aria-label={pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-cedar text-white hover:bg-cedar-dark disabled:opacity-50"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-cedar text-white hover:bg-cedar-dark disabled:opacity-50 sm:h-12 sm:w-12"
         onClick={last ? onDone : onNext}
       >
         {pending ? (

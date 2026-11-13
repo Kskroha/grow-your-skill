@@ -55,27 +55,21 @@ export function ProgressPage() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+      <div className={`mt-4 grid gap-4 ${progress.byTopic.length > 0 ? 'lg:grid-cols-[1.2fr_1fr]' : ''}`}>
         <div className="rounded-2xl border border-line bg-paper p-4">
           <h2 className="mb-3 text-[14px] font-semibold">Активность</h2>
           <ActivityHeatmap events={progress.activity} defaultRange="week" />
         </div>
-        <div className="rounded-2xl border border-line bg-paper p-4">
-          <h2 className="mb-3 text-[14px] font-semibold">По темам</h2>
-          <div className="space-y-3">
-            {progress.byKind.map((item) => (
-              <Meter
-                key={item.kind}
-                label={item.kind === 'GRAMMAR' ? 'Грамматика' : 'Лексика'}
-                value={item.completed}
-                total={item.total}
-              />
-            ))}
-            {progress.byTopic.map((topic) => (
-              <Meter key={topic.topicId} label={topic.title} value={topic.completed} total={topic.total} />
-            ))}
+        {progress.byTopic.length > 0 ? (
+          <div className="rounded-2xl border border-line bg-paper p-4">
+            <h2 className="mb-3 text-[14px] font-semibold">По темам</h2>
+            <div className="space-y-3">
+              {progress.byTopic.map((topic) => (
+                <Meter key={topic.topicId} label={topic.title} value={topic.completed} total={topic.total} />
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {progress.practiced.length > 0 ? (

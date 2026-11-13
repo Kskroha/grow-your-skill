@@ -33,9 +33,9 @@ export function LoginPage() {
   return (
     <div className="flex min-h-svh flex-col lg:flex-row">
       <aside className="bg-cedar px-6 py-8 text-white lg:flex lg:w-[42%] lg:flex-col lg:justify-end lg:px-12 lg:py-12">
-        <p className="text-[28px] font-semibold leading-tight lg:text-[36px]">Тренажёр корейского</p>
+        <p className="hangul text-[28px] font-semibold leading-tight lg:text-[36px]">한국어 연습</p>
         <p className="mt-3 max-w-sm text-[15px] text-white/85">
-          Кабинет учителя и учеников: задания, лексика и прогресс в одном месте.
+          Домашние задания, тренажер лексики и грамматики
         </p>
       </aside>
       <div className="flex flex-1 items-start justify-center bg-paper px-6 py-10 lg:items-center">
