@@ -22,6 +22,14 @@ function range(count: number) {
   return Array.from({ length: count }, (_, index) => index)
 }
 
+function optionTextClass(texts: string[]) {
+  const longest = Math.max(0, ...texts.map((text) => text.trim().length))
+  if (longest > 22) return 'text-[16px] sm:text-[16px]'
+  if (longest > 14) return 'text-[18px] sm:text-[17px]'
+  if (longest > 8) return 'text-[22px] sm:text-[20px]'
+  return 'text-[26px] sm:text-[20px]'
+}
+
 function isAnswered(tool: PracticeTool, state: PlayProgress, index: number) {
   if (tool === 'FLASHCARDS') return Boolean(state.known?.[index])
   return Boolean(state.feedback?.[index])
@@ -323,17 +331,17 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-paper px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-line bg-paper px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
         <Button tone="ghost" onClick={() => void exit()} disabled={leaving}>
           {leaving ? 'Выхожу…' : 'Выйти'}
         </Button>
-        <h1 className="min-w-0 flex-1 truncate text-[16px] font-semibold">
+        <h1 className="min-w-0 flex-1 truncate text-[15px] font-semibold sm:text-[16px]">
           {assignment.exercise.topic?.title ?? assignment.exercise.title}
         </h1>
         {currentTool ? (
           <button
             type="button"
-            className="text-[13px] font-medium text-ink-soft hover:text-ink"
+            className="shrink-0 text-[13px] font-medium text-ink-soft hover:text-ink"
             onClick={() => update({ ...progress, currentTool: null })}
           >
             Все упражнения
@@ -341,8 +349,18 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
         ) : null}
       </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">
-        <div className="mx-auto max-w-lg">
+      <div
+        className={
+          currentTool
+            ? 'flex min-h-0 flex-1 flex-col px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:overflow-auto sm:px-5 sm:py-5 lg:p-8'
+            : 'flex-1 overflow-auto px-4 py-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-5 lg:p-8'
+        }
+      >
+        <div
+          className={`mx-auto w-full max-w-lg ${
+            currentTool ? 'flex min-h-0 flex-1 flex-col sm:block sm:flex-none' : ''
+          }`}
+        >
           {!currentTool ? (
             <div>
               <p className="mb-3 text-[13px] font-medium text-ink">Список упражнений</p>
@@ -527,7 +545,7 @@ function ToolPlayer({
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-paper p-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col sm:block sm:rounded-2xl sm:border sm:border-line sm:bg-paper sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         {tool !== 'FLASHCARDS' ? (
           <div className="result-chip-slot min-w-0">
@@ -545,7 +563,7 @@ function ToolPlayer({
       </div>
 
       {tool === 'FLASHCARDS' && cards[cardStep] ? (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col sm:block">
           <button type="button" className="flash-face w-full" onClick={onFlip}>
             <div
               className={`flash-word ${flipped ? '' : 'hangul'}`}
@@ -555,11 +573,11 @@ function ToolPlayer({
             </div>
             <div className="flash-hint">{cards[cardStep].hint && !flipped ? cards[cardStep].hint : ' '}</div>
           </button>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button className="min-h-12" tone="ghost" onClick={() => markCard(false)}>
+          <div className="mt-3 grid shrink-0 grid-cols-2 gap-2 sm:mt-4">
+            <Button className="min-h-12 w-full" tone="ghost" onClick={() => markCard(false)}>
               Ещё учу
             </Button>
-            <Button className="min-h-12" onClick={() => markCard(true)}>
+            <Button className="min-h-12 w-full" onClick={() => markCard(true)}>
               Знаю
             </Button>
           </div>
@@ -567,115 +585,131 @@ function ToolPlayer({
       ) : null}
 
       {tool === 'TEST' && testItems[step] ? (
-        <div>
-          <div className="hangul text-[28px] font-medium" lang="ko">
-            {testItems[step].prompt}
+        <div className="flex min-h-0 flex-1 flex-col sm:block">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
+            <div className="hangul text-[36px] font-medium leading-tight sm:text-[28px]" lang="ko">
+              {testItems[step].prompt}
+            </div>
           </div>
-          <div className="mt-4 grid gap-2">
-            {testItems[step].options.map((option) => {
-              const picked = state.selected?.[step] === option.id
-              const isRight = feedback?.expectedId === option.id
-              const tone = feedback
-                ? isRight
-                  ? 'border-mint bg-mint/10'
+          <div className="mt-3 shrink-0 sm:mt-4">
+            <div className="grid gap-2">
+              {testItems[step].options.map((option) => {
+                const answerSize = optionTextClass(testItems[step].options.map((item) => item.text))
+                const picked = state.selected?.[step] === option.id
+                const isRight = feedback?.expectedId === option.id
+                const tone = feedback
+                  ? isRight
+                    ? 'border-mint bg-mint/10'
+                    : picked
+                      ? 'border-seal bg-red-50'
+                      : 'border-line opacity-60'
                   : picked
-                    ? 'border-seal bg-red-50'
-                    : 'border-line opacity-60'
-                : picked
-                  ? 'border-cedar bg-blush'
-                  : 'border-line'
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  disabled={Boolean(feedback) || pending}
-                  className={`min-h-14 rounded-xl border px-4 py-4 text-left text-[16px] ${tone}`}
-                  onClick={() => {
-                    const selected = [...(state.selected ?? [])]
-                    selected[step] = option.id
-                    onState({ ...state, selected })
-                    onCheck(step, { selected: option.id })
-                  }}
-                >
-                  {option.text}
-                </button>
-              )
-            })}
+                    ? 'border-cedar bg-blush'
+                    : 'border-line'
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={Boolean(feedback) || pending}
+                    className={`min-h-[4.25rem] w-full rounded-xl border px-4 py-3 text-left sm:min-h-14 ${tone}`}
+                    onClick={() => {
+                      const selected = [...(state.selected ?? [])]
+                      selected[step] = option.id
+                      onState({ ...state, selected })
+                      onCheck(step, { selected: option.id })
+                    }}
+                  >
+                    <span className={`hangul font-medium leading-snug ${answerSize}`} lang="ko">
+                      {option.text}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {feedback ? (
+              <ResultNav
+                last={last}
+                onNext={goNext}
+                onDone={finishTool}
+                doneLabel="Все упражнения"
+                align="end"
+              />
+            ) : (
+              <div className="mt-6 h-14 sm:h-12" />
+            )}
           </div>
-          {feedback ? (
-            <ResultNav
-              last={last}
-              onNext={goNext}
-              onDone={finishTool}
-              doneLabel="Все упражнения"
-              align="end"
-            />
-          ) : (
-            <div className="mt-6 h-14 sm:h-12" />
-          )}
         </div>
       ) : null}
 
       {tool === 'WRITE' && writeItems[step] ? (
-        <div>
-          <p className="text-[13px] text-ink-soft">Напишите по-корейски</p>
-          <div className="mt-2 text-[28px] font-semibold">{writeItems[step].prompt}</div>
-          <input
-            className="ko-input hangul"
-            lang="ko"
-            inputMode="text"
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-            value={state.texts?.[step] ?? ''}
-            disabled={Boolean(feedback) || pending}
-            onChange={(event) => {
-              const texts = [...(state.texts ?? [])]
-              texts[step] = event.target.value
-              onState({ ...state, texts })
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && state.texts?.[step]?.trim() && !feedback) {
-                event.preventDefault()
-                onCheck(step, { text: state.texts?.[step] })
-              }
-            }}
-          />
-          {!feedback ? (
-            <div className="mt-6 flex h-14 justify-end sm:h-12">
-              <Button
-                className="min-h-12"
-                disabled={pending || !state.texts?.[step]?.trim()}
-                onClick={() => onCheck(step, { text: state.texts?.[step] })}
-              >
-                Проверить
-              </Button>
+        <div className="flex min-h-0 flex-1 flex-col sm:block">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
+            <p className="text-[13px] text-ink-soft">Напишите по-корейски</p>
+            <div className="mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[28px]">
+              {writeItems[step].prompt}
             </div>
-          ) : (
-            <ResultNav
-              last={last}
-              onNext={goNext}
-              onDone={finishTool}
-              doneLabel="Все упражнения"
-              align="end"
+          </div>
+          <div className="mt-3 shrink-0 sm:mt-4">
+            <input
+              className="ko-input hangul"
+              lang="ko"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              value={state.texts?.[step] ?? ''}
+              disabled={Boolean(feedback) || pending}
+              onChange={(event) => {
+                const texts = [...(state.texts ?? [])]
+                texts[step] = event.target.value
+                onState({ ...state, texts })
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && state.texts?.[step]?.trim() && !feedback) {
+                  event.preventDefault()
+                  onCheck(step, { text: state.texts?.[step] })
+                }
+              }}
             />
-          )}
+            {!feedback ? (
+              <div className="mt-4">
+                <Button
+                  className="min-h-14 w-full sm:min-h-12 sm:w-auto sm:ml-auto sm:flex"
+                  disabled={pending || !state.texts?.[step]?.trim()}
+                  onClick={() => onCheck(step, { text: state.texts?.[step] })}
+                >
+                  Проверить
+                </Button>
+              </div>
+            ) : (
+              <ResultNav
+                last={last}
+                onNext={goNext}
+                onDone={finishTool}
+                doneLabel="Все упражнения"
+                align="end"
+              />
+            )}
+          </div>
         </div>
       ) : null}
 
       {tool === 'SPEAK' && speakItems[step] ? (
-        <div className="text-center">
-          <p className="text-[13px] text-ink-soft">Скажите слово по-корейски.</p>
-          <p className="mt-1 text-[13px] text-ink-soft">
-            На телефоне откройте корейскую клавиатуру: можно диктовать её микрофоном или набрать хангыль.
-          </p>
-          <div className="mt-3 text-[32px] font-semibold">{speakItems[step].prompt}</div>
-          <div className="mt-4 flex min-h-[7.5rem] flex-col justify-center rounded-xl border border-line bg-blush px-4 py-5">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-soft">Я слышу</p>
+        <div className="flex min-h-0 flex-1 flex-col sm:block">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
+            <p className="text-[13px] text-ink-soft">Скажите или напишите по-корейски</p>
+            <div className="mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[32px]">
+              {speakItems[step].prompt}
+            </div>
+          </div>
+          <div className="mt-3 shrink-0 sm:mt-4">
+            <label htmlFor="speak-heard" className="block text-[12px] font-semibold uppercase tracking-wide text-ink-soft">
+              Я слышу
+            </label>
             <input
               id="speak-heard"
-              className="hangul mt-3 min-h-12 w-full bg-transparent text-center text-[22px] font-medium outline-none"
+              className="ko-input hangul"
               lang="ko"
               inputMode="text"
               autoCapitalize="none"
@@ -697,81 +731,88 @@ function ToolPlayer({
                 }
               }}
             />
+            {!feedback ? (
+              <div className={`mt-4 grid gap-2 ${hasKoreanSpeech() ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {hasKoreanSpeech() ? (
+                  <Button
+                    tone="ghost"
+                    className="min-h-14 w-full sm:min-h-12"
+                    disabled={listening || pending}
+                    onClick={() => onListen(step)}
+                  >
+                    {listening ? 'Слушаю…' : 'Сказать'}
+                  </Button>
+                ) : null}
+                <Button
+                  className="min-h-14 w-full sm:min-h-12"
+                  disabled={pending || listening || !state.heard?.[step]?.trim()}
+                  onClick={() => onCheck(step, { heard: state.heard?.[step] })}
+                >
+                  Проверить
+                </Button>
+              </div>
+            ) : (
+              <ResultNav
+                last={last}
+                onNext={goNext}
+                onDone={finishTool}
+                doneLabel="Все упражнения"
+                align="end"
+              />
+            )}
           </div>
-          {!feedback ? (
-            <div className="mt-4 flex min-h-14 items-center justify-end gap-2 sm:min-h-12">
-              <Button
-                tone="ghost"
-                disabled={listening || pending}
-                onClick={() => onListen(step)}
-              >
-                {listening ? 'Слушаю…' : hasKoreanSpeech() ? 'Сказать' : 'Клавиатура'}
-              </Button>
-              <Button
-                disabled={pending || listening || !state.heard?.[step]?.trim()}
-                onClick={() => onCheck(step, { heard: state.heard?.[step] })}
-              >
-                Проверить
-              </Button>
-            </div>
-          ) : (
-            <ResultNav
-              last={last}
-              onNext={goNext}
-              onDone={finishTool}
-              doneLabel="Все упражнения"
-              align="end"
-              compact
-            />
-          )}
         </div>
       ) : null}
 
       {tool === 'YES_NO' && yesNoItems[step] ? (
-        <div className="text-center">
-          <p className="text-[13px] text-ink-soft">Верный ли это перевод?</p>
-          <div className="hangul mt-4 text-[36px] font-medium" lang="ko">
-            {yesNoItems[step].ko}
+        <div className="flex min-h-0 flex-1 flex-col sm:block">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none">
+            <p className="text-[13px] text-ink-soft">Верный ли это перевод?</p>
+            <div className="hangul mt-4 text-[40px] font-medium leading-tight sm:text-[36px]" lang="ko">
+              {yesNoItems[step].ko}
+            </div>
+            <div className="mt-3 text-[22px] sm:mt-2">{yesNoItems[step].ru}</div>
           </div>
-          <div className="mt-2 text-[22px]">{yesNoItems[step].ru}</div>
-          <div className="mt-6 flex justify-center gap-2">
-            <Button
-              className="min-h-12 min-w-28"
-              disabled={Boolean(feedback) || pending}
-              onClick={() => {
-                const answers = [...(state.answers ?? [])]
-                answers[step] = true
-                onState({ ...state, answers })
-                onCheck(step, { yes: true })
-              }}
-            >
-              네
-            </Button>
-            <Button
-              tone="ghost"
-              className="min-h-12 min-w-28"
-              disabled={Boolean(feedback) || pending}
-              onClick={() => {
-                const answers = [...(state.answers ?? [])]
-                answers[step] = false
-                onState({ ...state, answers })
-                onCheck(step, { yes: false })
-              }}
-            >
-              아니요
-            </Button>
+          <div className="mt-3 shrink-0 sm:mt-6">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                className="min-h-[4.5rem] w-full sm:min-h-14"
+                disabled={Boolean(feedback) || pending}
+                onClick={() => {
+                  const answers = [...(state.answers ?? [])]
+                  answers[step] = true
+                  onState({ ...state, answers })
+                  onCheck(step, { yes: true })
+                }}
+              >
+                <span className="hangul text-[32px] font-semibold leading-none sm:text-[24px]">네</span>
+              </Button>
+              <Button
+                tone="ghost"
+                className="min-h-[4.5rem] w-full sm:min-h-14"
+                disabled={Boolean(feedback) || pending}
+                onClick={() => {
+                  const answers = [...(state.answers ?? [])]
+                  answers[step] = false
+                  onState({ ...state, answers })
+                  onCheck(step, { yes: false })
+                }}
+              >
+                <span className="hangul text-[32px] font-semibold leading-none sm:text-[24px]">아니요</span>
+              </Button>
+            </div>
+            {feedback ? (
+              <ResultNav
+                last={last}
+                onNext={goNext}
+                onDone={finishTool}
+                doneLabel="Все упражнения"
+                align="end"
+              />
+            ) : (
+              <div className="mt-6 h-14 sm:h-12" />
+            )}
           </div>
-          {feedback ? (
-            <ResultNav
-              last={last}
-              onNext={goNext}
-              onDone={finishTool}
-              doneLabel="Все упражнения"
-              align="end"
-            />
-          ) : (
-            <div className="mt-6 h-14 sm:h-12" />
-          )}
         </div>
       ) : null}
     </div>

@@ -261,20 +261,23 @@ textarea:focus-visible {
 
 .flash-face {
   display: flex;
-  min-height: 260px;
+  min-height: 0;
   width: 100%;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   background: var(--color-blush);
-  padding: 1.75rem 1rem;
+  padding: 1.5rem 1rem;
   text-align: center;
 }
 
 @media (min-width: 640px) {
   .flash-face {
     min-height: 220px;
+    flex: none;
+    border-radius: 1rem;
     padding: 2.5rem 1.5rem;
   }
 }
@@ -294,8 +297,8 @@ textarea:focus-visible {
 
 .ko-input {
   width: 100%;
-  margin-top: 1rem;
-  min-height: 52px;
+  margin-top: 0.5rem;
+  min-height: 56px;
   border: 0;
   border-bottom: 1px solid var(--color-line);
   border-radius: 0;
