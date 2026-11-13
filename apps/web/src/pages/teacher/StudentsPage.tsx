@@ -27,12 +27,14 @@ export function StudentsPage() {
 
   return (
     <div>
-      <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <header className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-[24px] font-semibold">Ученики</h1>
+          <h1 className="text-[22px] font-semibold sm:text-[24px]">Ученики</h1>
           <p className="mt-1 text-[14px] text-ink-soft">{students.length} в кабинете</p>
         </div>
-        <Button onClick={() => setInviteOpen((value) => !value)}>Добавить ученика</Button>
+        <Button className="w-full sm:w-auto" onClick={() => setInviteOpen((value) => !value)}>
+          Добавить ученика
+        </Button>
       </header>
 
       {inviteOpen ? (

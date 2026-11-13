@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api.ts'
-import { Button, ResultNav } from '../../components/ui.tsx'
+import { Button, ResultChip, ResultNav } from '../../components/ui.tsx'
+import { startKoreanSpeech } from '../../speech.ts'
 import type { Assignment, PlayProgress, PracticeTool } from '../../types.ts'
 
 type Feedback = { correct: boolean; expected: string; expectedId?: string }
@@ -22,12 +23,12 @@ function range(count: number) {
 }
 
 function isAnswered(tool: PracticeTool, state: PlayProgress, index: number) {
-  if (tool === 'FLASHCARDS') return Boolean(state.marked?.[index])
+  if (tool === 'FLASHCARDS') return Boolean(state.known?.[index])
   return Boolean(state.feedback?.[index])
 }
 
 function isCorrect(tool: PracticeTool, state: PlayProgress, index: number) {
-  if (tool === 'FLASHCARDS') return Boolean(state.marked?.[index] && state.known?.[index])
+  if (tool === 'FLASHCARDS') return Boolean(state.known?.[index])
   return Boolean(state.feedback?.[index]?.correct)
 }
 
@@ -35,8 +36,15 @@ function toolStats(tool: PracticeTool, state: PlayProgress, total: number) {
   const answered = range(total).filter((index) => isAnswered(tool, state, index)).length
   const correct = range(total).filter((index) => isCorrect(tool, state, index)).length
   const finished = total > 0 && answered >= total
-  const passed = finished && correct / total >= PASS_RATIO
-  return { answered, correct, total, finished, passed, needsRetry: finished && !passed }
+  const cleared = finished && correct === total
+  return {
+    answered,
+    correct,
+    total,
+    finished,
+    passed: cleared,
+    needsRetry: !cleared && (finished || Boolean(state.retry)) && correct < total,
+  }
 }
 
 function wrongIndices(tool: PracticeTool, state: PlayProgress, total: number) {
@@ -47,8 +55,28 @@ function activeQueue(state: PlayProgress, total: number) {
   return state.queue?.length ? state.queue : range(total)
 }
 
+function remainingFlashQueue(state: PlayProgress, total: number) {
+  const unknown = range(total).filter((index) => !state.known?.[index])
+  if (!state.queue?.length) return unknown
+  const kept = state.queue.filter((index) => unknown.includes(index))
+  const missing = unknown.filter((index) => !kept.includes(index))
+  return [...kept, ...missing]
+}
+
+function postponeCard(queue: number[], card: number, later = 3) {
+  const rest = queue.filter((index) => index !== card)
+  const at = Math.min(later, rest.length)
+  return [...rest.slice(0, at), card, ...rest.slice(at)]
+}
+
 function resetWrong(tool: PracticeTool, state: PlayProgress, wrong: number[]): PlayProgress {
-  const next = { ...state, retry: true, queue: wrong, step: wrong[0] ?? 0, done: false }
+  const next: PlayProgress = {
+    ...state,
+    retry: true,
+    queue: wrong,
+    step: wrong[0] ?? 0,
+    done: false,
+  }
   if (tool === 'FLASHCARDS') {
     next.marked = [...(state.marked ?? [])]
     next.known = [...(state.known ?? [])]
@@ -59,8 +87,15 @@ function resetWrong(tool: PracticeTool, state: PlayProgress, wrong: number[]): P
     return next
   }
   next.feedback = [...(state.feedback ?? [])]
+  next.selected = [...(state.selected ?? [])]
+  next.texts = [...(state.texts ?? [])]
+  next.heard = [...(state.heard ?? [])]
+  next.answers = [...(state.answers ?? [])]
   for (const index of wrong) {
     next.feedback[index] = null
+    next.selected[index] = ''
+    next.texts[index] = ''
+    next.heard[index] = ''
   }
   return next
 }
@@ -171,14 +206,18 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
   function openTool(tool: PracticeTool) {
     const count = countFor(tool)
     let state = toolState(tool)
-    const stats = toolStats(tool, state, count)
-    if (stats.needsRetry) {
+    if (tool === 'FLASHCARDS') {
+      const queue = remainingFlashQueue(state, count)
+      state = { ...state, queue, step: queue[0] ?? 0, done: queue.length === 0, retry: queue.length > 0 && queue.length < count }
+    } else {
       const wrong = wrongIndices(tool, state, count)
       const unansweredWrong = wrong.filter((index) => !isAnswered(tool, state, index))
-      if (unansweredWrong.length === 0) {
-        state = resetWrong(tool, state, wrong)
-      } else {
-        state = { ...state, retry: true, queue: unansweredWrong, step: unansweredWrong[0], done: false }
+      if (wrong.length > 0 && (state.retry || toolStats(tool, state, count).finished)) {
+        if (unansweredWrong.length > 0) {
+          state = { ...state, retry: true, queue: unansweredWrong, step: unansweredWrong[0], done: false }
+        } else {
+          state = resetWrong(tool, state, wrong)
+        }
       }
     }
     update({ ...progress, currentTool: tool, tools: { ...progress.tools, [tool]: state } })
@@ -233,58 +272,39 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
   }
 
   function listen(tool: PracticeTool, index: number) {
-    const SpeechCtor = (
-      window as Window & {
-        SpeechRecognition?: new () => KoreanSpeech
-        webkitSpeechRecognition?: new () => KoreanSpeech
-      }
-    ).SpeechRecognition ?? (
-      window as Window & { webkitSpeechRecognition?: new () => KoreanSpeech }
-    ).webkitSpeechRecognition
-    if (!SpeechCtor) {
-      setError('Этот браузер не умеет распознавать речь. Откройте задание в Chrome.')
-      return
-    }
-    const recognition = new SpeechCtor()
-    recognition.lang = 'ko-KR'
-    recognition.interimResults = true
-    recognition.continuous = false
     setListening(true)
     setLiveHeard('')
     setError('')
-    recognition.onresult = (event) => {
-      let interim = ''
-      let finalText = ''
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const piece = event.results[i]?.[0]?.transcript ?? ''
-        if (event.results[i]?.isFinal) finalText += piece
-        else interim += piece
-      }
-      const caption = (finalText || interim).trim()
-      setLiveHeard(caption)
-      if (!finalText.trim()) return
-      const current = toolState(tool)
-      const nextHeard = [...(current.heard ?? [])]
-      nextHeard[index] = finalText.trim()
-      update({
-        ...snapshot.current,
-        currentTool: tool,
-        tools: { ...snapshot.current.tools, [tool]: { ...current, heard: nextHeard, step: index } },
-      })
-      void check(tool, index, { heard: finalText.trim() })
+    const started = startKoreanSpeech({
+      onCaption: (text, isFinal) => {
+        setLiveHeard(text)
+        if (!isFinal) return
+        const current = toolState(tool)
+        const nextHeard = [...(current.heard ?? [])]
+        nextHeard[index] = text
+        update({
+          ...snapshot.current,
+          currentTool: tool,
+          tools: { ...snapshot.current.tools, [tool]: { ...current, heard: nextHeard, step: index } },
+        })
+        void check(tool, index, { heard: text })
+      },
+      onError: (code) => {
+        const messages: Record<string, string> = {
+          'not-allowed': 'Нет доступа к микрофону. Разрешите микрофон для этого сайта.',
+          'no-speech': 'Браузер ничего не услышал. Скажите слово по-корейски и нажмите ещё раз.',
+          'audio-capture': 'Микрофон не найден.',
+          network: 'Распознавание речи недоступно без сети.',
+          'language-not-supported': 'Этот браузер не распознаёт корейский. Проверьте язык диктовки в настройках телефона.',
+        }
+        setError(messages[code] ?? 'Не получилось распознать. Нажмите ещё раз.')
+      },
+      onEnd: () => setListening(false),
+    })
+    if (!started) {
+      setListening(false)
+      setError('Этот браузер не умеет распознавать речь. Откройте задание в Chrome.')
     }
-    recognition.onerror = (event) => {
-      const messages: Record<string, string> = {
-        'not-allowed': 'Нет доступа к микрофону. Разрешите микрофон для этого сайта.',
-        'no-speech': 'Браузер ничего не услышал. Скажите слово по-корейски и нажмите ещё раз.',
-        'audio-capture': 'Микрофон не найден.',
-        network: 'Распознавание речи недоступно без сети.',
-        'language-not-supported': 'Этот браузер не распознаёт корейский.',
-      }
-      setError(messages[event.error] ?? 'Не получилось распознать. Нажмите ещё раз.')
-    }
-    recognition.onend = () => setListening(false)
-    recognition.start()
   }
 
   const summaries = tools.map((tool) => {
@@ -319,8 +339,8 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
         ) : null}
       </div>
 
-      <div className="flex-1 overflow-auto p-5 lg:p-8">
-        <div className="mx-auto max-w-3xl">
+      <div className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">
+        <div className="mx-auto max-w-lg">
           {!currentTool ? (
             <div>
               <p className="mb-3 text-[13px] font-medium text-ink">Список упражнений</p>
@@ -373,19 +393,16 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
               listening={listening}
               liveHeard={liveHeard}
               onFlip={() => setFlipped((value) => !value)}
-              onState={(next) =>
+              onState={(next) => {
+                if (next.done) setFlipped(false)
                 update({
                   ...progress,
-                  currentTool,
+                  currentTool: next.done ? null : currentTool,
                   tools: { ...progress.tools, [currentTool]: next },
                 })
-              }
+              }}
               onCheck={(index, payload) => void check(currentTool, index, payload)}
               onListen={(index) => listen(currentTool, index)}
-              onBack={() => {
-                setFlipped(false)
-                update({ ...progress, currentTool: null })
-              }}
             />
           )}
           {error ? <p className="mt-4 text-seal">{error}</p> : null}
@@ -407,7 +424,6 @@ function ToolPlayer({
   onState,
   onCheck,
   onListen,
-  onBack,
 }: {
   assignment: Assignment
   tool: PracticeTool
@@ -420,7 +436,6 @@ function ToolPlayer({
   onState: (next: PlayProgress) => void
   onCheck: (index: number, payload: Record<string, unknown>) => void
   onListen: (index: number) => void
-  onBack: () => void
 }) {
   const pack = assignment.exercise.payload
   const step = state.step ?? 0
@@ -440,74 +455,99 @@ function ToolPlayer({
           : tool === 'SPEAK'
             ? speakItems.length
             : yesNoItems.length
-  const queue = activeQueue(state, total)
-  const queuePos = Math.max(0, queue.indexOf(step))
-  const last = queue.length === 0 || queuePos >= queue.length - 1
+  const queue = tool === 'FLASHCARDS' ? remainingFlashQueue(state, total) : activeQueue(state, total)
+  const cardStep = tool === 'FLASHCARDS' && queue.length ? queue[0] : step
+  const queuePos = Math.max(0, queue.indexOf(cardStep))
+  const queueLast = queue.length === 0 || queuePos >= queue.length - 1
+  const remainingWrong = wrongIndices(tool, state, total)
+  const last = queueLast && remainingWrong.length === 0
+
+  function startErrorRound(nextState: PlayProgress) {
+    const wrong = wrongIndices(tool, nextState, total)
+    if (wrong.length === 0) {
+      onState({ ...nextState, done: true, retry: false, queue: undefined })
+      return
+    }
+    if (flipped) onFlip()
+    onState(resetWrong(tool, nextState, wrong))
+  }
 
   function goNext() {
     const nextIndex = queue[queuePos + 1]
-    if (nextIndex === undefined) return
-    onState({ ...state, step: nextIndex })
+    if (nextIndex !== undefined) {
+      onState({ ...state, step: nextIndex })
+      return
+    }
+    startErrorRound(state)
   }
 
   function finishTool() {
-    const stats = toolStats(tool, state, total)
-    if (stats.needsRetry) {
-      onState(resetWrong(tool, state, wrongIndices(tool, state, total)))
-      return
-    }
-    onBack()
+    startErrorRound(state)
   }
 
   function markCard(knows: boolean) {
-    const known = [...(state.known ?? [])]
-    const marked = [...(state.marked ?? [])]
-    known[step] = knows
-    marked[step] = true
-    const nextState: PlayProgress = { ...state, known, marked, step }
-    const stats = toolStats(tool, nextState, total)
-    const remaining = queue.filter((index) => index !== step && !marked[index])
-    if (remaining.length === 0) {
-      if (stats.needsRetry) {
-        onState(resetWrong(tool, nextState, wrongIndices(tool, nextState, total)))
-        if (flipped) onFlip()
-        return
-      }
-      onState({ ...nextState, done: stats.passed, retry: false, queue: undefined })
-      if (stats.passed) onBack()
+    const current = cardStep
+    const known = range(total).map((index) => Boolean(state.known?.[index]))
+    const marked = range(total).map((index) => Boolean(state.marked?.[index]))
+    let nextQueue = queue.filter((index) => index !== current)
+    if (knows) {
+      known[current] = true
+      marked[current] = true
+    } else {
+      known[current] = false
+      marked[current] = false
+      nextQueue = postponeCard(queue, current)
+    }
+    if (flipped) onFlip()
+    if (nextQueue.length === 0) {
+      onState({ ...state, known, marked, queue: [], step: 0, done: true, retry: false })
       return
     }
-    const nextStep = remaining.find((index) => index > step) ?? remaining[0]
-    if (flipped) onFlip()
-    onState({ ...nextState, step: nextStep, done: stats.passed })
+    onState({
+      ...state,
+      known,
+      marked,
+      queue: nextQueue,
+      step: nextQueue[0],
+      done: false,
+      retry: nextQueue.length < total,
+    })
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-paper p-6">
+    <div className="rounded-2xl border border-line bg-paper p-4 sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-[18px] font-semibold">{labels[tool]}</h2>
-        <p className="text-[13px] text-ink-soft">
-          {queuePos + 1} из {Math.max(queue.length, 1)}
-          {state.retry ? ' · ошибки' : ''}
+        {tool !== 'FLASHCARDS' ? (
+          <div className="result-chip-slot min-w-0">
+            {feedback ? <ResultChip correct={feedback.correct} expected={feedback.expected} /> : null}
+          </div>
+        ) : (
+          <div />
+        )}
+        <p className="shrink-0 text-[13px] text-ink-soft">
+          {tool === 'FLASHCARDS'
+            ? `${range(total).filter((index) => state.known?.[index]).length} из ${total}`
+            : `${queuePos + 1} из ${Math.max(queue.length, 1)}`}
+          {tool !== 'FLASHCARDS' && state.retry ? ' · ошибки' : ''}
         </p>
       </div>
 
-      {tool === 'FLASHCARDS' && cards[step] ? (
+      {tool === 'FLASHCARDS' && cards[cardStep] ? (
         <div>
           <button type="button" className="flash-face w-full" onClick={onFlip}>
             <div
               className={`flash-word ${flipped ? '' : 'hangul'}`}
               lang={flipped ? undefined : 'ko'}
             >
-              {flipped ? cards[step].back : cards[step].front}
+              {flipped ? cards[cardStep].back : cards[cardStep].front}
             </div>
-            <div className="flash-hint">{cards[step].hint && !flipped ? cards[step].hint : ' '}</div>
+            <div className="flash-hint">{cards[cardStep].hint && !flipped ? cards[cardStep].hint : ' '}</div>
           </button>
-          <div className="mt-4 flex gap-2">
-            <Button tone="ghost" disabled={!flipped && !state.marked?.[step]} onClick={() => markCard(false)}>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button tone="ghost" onClick={() => markCard(false)}>
               Ещё учу
             </Button>
-            <Button disabled={!flipped && !state.marked?.[step]} onClick={() => markCard(true)}>
+            <Button onClick={() => markCard(true)}>
               Знаю
             </Button>
           </div>
@@ -552,14 +592,15 @@ function ToolPlayer({
           </div>
           {feedback ? (
             <ResultNav
-              correct={feedback.correct}
-              expected={feedback.expected}
               last={last}
               onNext={goNext}
               onDone={finishTool}
               doneLabel="Все упражнения"
+              align="end"
             />
-          ) : null}
+          ) : (
+            <div className="mt-6 h-11" />
+          )}
         </div>
       ) : null}
 
@@ -568,7 +609,13 @@ function ToolPlayer({
           <p className="text-[13px] text-ink-soft">Напишите по-корейски</p>
           <div className="mt-2 text-[28px] font-semibold">{writeItems[step].prompt}</div>
           <input
-            className="hangul mt-4 w-full border-b-2 border-cedar bg-transparent py-2 text-[22px] outline-none"
+            className="ko-input hangul"
+            lang="ko"
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
             value={state.texts?.[step] ?? ''}
             disabled={Boolean(feedback) || pending}
             onChange={(event) => {
@@ -584,21 +631,21 @@ function ToolPlayer({
             }}
           />
           {!feedback ? (
-            <Button
-              className="mt-3"
-              disabled={pending || !state.texts?.[step]?.trim()}
-              onClick={() => onCheck(step, { text: state.texts?.[step] })}
-            >
-              Проверить
-            </Button>
+            <div className="mt-6 flex h-11 justify-end">
+              <Button
+                disabled={pending || !state.texts?.[step]?.trim()}
+                onClick={() => onCheck(step, { text: state.texts?.[step] })}
+              >
+                Проверить
+              </Button>
+            </div>
           ) : (
             <ResultNav
-              correct={feedback.correct}
-              expected={feedback.expected}
               last={last}
               onNext={goNext}
               onDone={finishTool}
               doneLabel="Все упражнения"
+              align="end"
             />
           )}
         </div>
@@ -606,31 +653,30 @@ function ToolPlayer({
 
       {tool === 'SPEAK' && speakItems[step] ? (
         <div className="text-center">
-          <p className="text-[13px] text-ink-soft">Скажите это слово по-корейски. Браузер слушает корейскую речь (ko-KR).</p>
+          <p className="text-[13px] text-ink-soft">Скажите слово по-корейски.</p>
           <div className="mt-3 text-[32px] font-semibold">{speakItems[step].prompt}</div>
-          <div className="mt-5 rounded-xl border border-line bg-blush px-4 py-3">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-soft">
-              {listening ? 'Браузер слышит' : 'Что услышал браузер'}
-            </p>
-            <p className="hangul mt-2 min-h-8 text-[22px] font-medium" lang="ko">
+          <div className="mt-4 flex min-h-[7.5rem] flex-col justify-center rounded-xl border border-line bg-blush px-4 py-5" lang="ko">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-soft">Я слышу</p>
+            <p className="hangul mt-3 min-h-12 text-[22px] font-medium" lang="ko">
               {liveHeard || state.heard?.[step] || (listening ? '…' : '—')}
             </p>
           </div>
-          {!feedback ? (
-            <Button className="mt-4" disabled={listening || pending} onClick={() => onListen(step)}>
-              {listening ? 'Слушаю корейскую речь…' : 'Нажать и сказать'}
-            </Button>
-          ) : (
-            <ResultNav
-              correct={feedback.correct}
-              expected={feedback.expected}
-              last={last}
-              onNext={goNext}
-              onDone={finishTool}
-              doneLabel="Все упражнения"
-              align="center"
-            />
-          )}
+          <div className="mt-4 flex min-h-11 items-center justify-center">
+            {!feedback ? (
+              <Button disabled={listening || pending} onClick={() => onListen(step)}>
+                {listening ? 'Слушаю корейскую речь…' : 'Нажать и сказать'}
+              </Button>
+            ) : (
+              <ResultNav
+                last={last}
+                onNext={goNext}
+                onDone={finishTool}
+                doneLabel="Все упражнения"
+                align="center"
+                compact
+              />
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -643,6 +689,7 @@ function ToolPlayer({
           <div className="mt-2 text-[22px]">{yesNoItems[step].ru}</div>
           <div className="mt-6 flex justify-center gap-2">
             <Button
+              className="min-h-11 min-w-24"
               disabled={Boolean(feedback) || pending}
               onClick={() => {
                 const answers = [...(state.answers ?? [])]
@@ -655,6 +702,7 @@ function ToolPlayer({
             </Button>
             <Button
               tone="ghost"
+              className="min-h-11 min-w-24"
               disabled={Boolean(feedback) || pending}
               onClick={() => {
                 const answers = [...(state.answers ?? [])]
@@ -668,30 +716,18 @@ function ToolPlayer({
           </div>
           {feedback ? (
             <ResultNav
-              correct={feedback.correct}
-              expected={feedback.expected}
               last={last}
               onNext={goNext}
               onDone={finishTool}
               doneLabel="Все упражнения"
               align="center"
             />
-          ) : null}
+          ) : (
+            <div className="mt-6 h-11" />
+          )}
         </div>
       ) : null}
     </div>
   )
 }
 
-type KoreanSpeech = {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  start: () => void
-  onresult: ((event: {
-    resultIndex: number
-    results: ArrayLike<{ isFinal: boolean } & ArrayLike<{ transcript: string }>>
-  }) => void) | null
-  onerror: ((event: { error: string }) => void) | null
-  onend: (() => void) | null
-}

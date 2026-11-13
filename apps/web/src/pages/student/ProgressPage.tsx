@@ -29,11 +29,11 @@ export function ProgressPage() {
 
   return (
     <div>
-      <header className="mb-5 flex flex-wrap items-center gap-5 rounded-2xl border border-line bg-paper p-5">
-        <StudentAvatarButton size={120} />
+      <header className="mb-4 flex items-center gap-4 rounded-2xl border border-line bg-paper p-4 sm:mb-5 sm:gap-5 sm:p-5">
+        <StudentAvatarButton size={80} />
         <div className="min-w-0 flex-1">
-          <h1 className="text-[24px] font-semibold">Прогресс</h1>
-          <p className="mt-1 text-[18px] font-medium">{user?.name}</p>
+          <h1 className="text-[22px] font-semibold sm:text-[24px]">Прогресс</h1>
+          <p className="mt-1 text-[16px] font-medium sm:text-[18px]">{user?.name}</p>
           <p className="mt-1 text-[13px] text-ink-soft">Нажмите на фото, чтобы сменить</p>
         </div>
       </header>

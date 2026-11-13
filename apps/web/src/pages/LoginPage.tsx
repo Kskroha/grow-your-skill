@@ -32,14 +32,11 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-svh flex-col lg:flex-row">
-      <aside className="flex flex-col justify-between bg-cedar px-6 py-8 text-white lg:w-[42%] lg:px-12 lg:py-12">
-        <p className="text-[22px] font-semibold">Тренажёр</p>
-        <div className="mt-8 lg:mt-0">
-          <p className="text-[28px] font-semibold leading-tight lg:text-[36px]">Тренажёр корейского</p>
-          <p className="mt-3 max-w-sm text-[15px] text-white/85">
-            Кабинет учителя и учеников: задания, лексика и прогресс в одном месте.
-          </p>
-        </div>
+      <aside className="bg-cedar px-6 py-8 text-white lg:flex lg:w-[42%] lg:flex-col lg:justify-end lg:px-12 lg:py-12">
+        <p className="text-[28px] font-semibold leading-tight lg:text-[36px]">Тренажёр корейского</p>
+        <p className="mt-3 max-w-sm text-[15px] text-white/85">
+          Кабинет учителя и учеников: задания, лексика и прогресс в одном месте.
+        </p>
       </aside>
       <div className="flex flex-1 items-start justify-center bg-paper px-6 py-10 lg:items-center">
         <form onSubmit={onSubmit} className="w-full max-w-[360px] space-y-4">

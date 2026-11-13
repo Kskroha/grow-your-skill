@@ -314,24 +314,62 @@ export function Button({
   )
 }
 
-export function ResultNav({
+export function ResultChip({
   correct,
   expected,
+}: {
+  correct: boolean
+  expected?: string
+}) {
+  return (
+    <div className={`result-chip ${correct ? 'result-chip--ok' : 'result-chip--no'}`}>
+      <span className="result-mark" aria-hidden>
+        {correct ? (
+          <svg viewBox="0 0 20 20" className="result-mark-icon" fill="none">
+            <path
+              d="M4.5 10.5 8.2 14.2 15.5 6.2"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 20 20" className="result-mark-icon" fill="none">
+            <path
+              d="M6 6l8 8M14 6l-8 8"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+      </span>
+      {correct ? (
+        <span className="result-title">Верно</span>
+      ) : expected ? (
+        <span className="hangul result-answer">{expected}</span>
+      ) : null}
+    </div>
+  )
+}
+
+export function ResultNav({
   last,
   onNext,
   onDone,
   doneLabel = 'Завершить',
   pending,
-  align = 'start',
+  align = 'end',
+  compact,
 }: {
-  correct: boolean
-  expected?: string
   last: boolean
   onNext: () => void
   onDone: () => void
   doneLabel?: string
   pending?: boolean
-  align?: 'start' | 'center'
+  align?: 'start' | 'center' | 'end'
+  compact?: boolean
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -348,21 +386,32 @@ export function ResultNav({
   }, [last, onDone, onNext, pending])
 
   return (
-    <div className="result-nav mt-4 text-left">
-      <div className={`result-banner ${correct ? 'result-banner--ok' : 'result-banner--no'}`}>
-        <span className="result-mark" aria-hidden>
-          {correct ? '✓' : '→'}
-        </span>
-        <div className="min-w-0">
-          <p className="result-title">{correct ? 'Верно!' : 'Правильный ответ'}</p>
-          {!correct && expected ? <p className="hangul result-answer">{expected}</p> : null}
-        </div>
-      </div>
-      <div className={`mt-3 ${align === 'center' ? 'flex justify-center' : ''}`}>
-        <Button disabled={pending} onClick={last ? onDone : onNext}>
-          {pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
-        </Button>
-      </div>
+    <div
+      className={`result-nav flex h-11 ${compact ? '' : 'mt-6'} ${
+        align === 'center' ? 'justify-center' : align === 'start' ? 'justify-start' : 'justify-end'
+      }`}
+    >
+      <button
+        type="button"
+        disabled={pending}
+        aria-label={pending ? 'Сохраняю…' : last ? doneLabel : 'Дальше'}
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-cedar text-white hover:bg-cedar-dark disabled:opacity-50"
+        onClick={last ? onDone : onNext}
+      >
+        {pending ? (
+          <span className="text-[16px]">…</span>
+        ) : (
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" aria-hidden>
+            <path
+              d="M4 10h12m0 0-4.5-4.5M16 10l-4.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </button>
     </div>
   )
 }

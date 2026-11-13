@@ -26,8 +26,8 @@ export function StudentHome() {
 
   return (
     <div>
-      <header className="mb-5">
-        <h1 className="text-[24px] font-semibold">Мои задания</h1>
+      <header className="mb-4 sm:mb-5">
+        <h1 className="text-[22px] font-semibold sm:text-[24px]">Мои задания</h1>
         <p className="mt-1 text-[14px] text-ink-soft">
           {user?.name}
           {open.length > 0 ? ` · открыто ${open.length}` : assignments.length > 0 ? ' · всё сдано' : ''}
@@ -51,7 +51,7 @@ export function StudentHome() {
                 Всё сдано — можно повторить выполненное ниже.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {open.map((item) => (
                   <AssignmentCard
                     key={item.id}
@@ -74,7 +74,7 @@ export function StudentHome() {
               <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-soft">
                 Выполненные
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {done.map((item) => (
                   <AssignmentCard
                     key={item.id}

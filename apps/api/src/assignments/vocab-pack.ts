@@ -152,6 +152,7 @@ export function packTotalCount(payload: PackPayload) {
 
 type ToolProgress = {
   done?: boolean;
+  retry?: boolean;
   marked?: boolean[];
   known?: boolean[];
   feedback?: Array<{ correct?: boolean } | null | undefined>;
@@ -165,14 +166,9 @@ export function toolAnswerStats(
   total: number,
 ) {
   if (tool === "FLASHCARDS") {
-    const marked = saved.marked ?? [];
     const known = saved.known ?? [];
-    const answered = marked.filter(Boolean).length;
-    const correct = marked.reduce(
-      (sum, flag, index) => sum + (flag && known[index] ? 1 : 0),
-      0,
-    );
-    return { total, answered, correct };
+    const correct = known.filter(Boolean).length;
+    return { total, answered: correct, correct };
   }
   const feedback = saved.feedback ?? [];
   const answered = feedback.filter(Boolean).length;
@@ -227,12 +223,13 @@ export function packToolSummaries(payload: PackPayload, progress: unknown) {
     const total = packActivityCount(payload, tool);
     const stats = toolAnswerStats(tool, saved, total);
     const finished = stats.total > 0 && stats.answered >= stats.total;
-    const passed = toolHasPassed(tool, saved, total);
+    const cleared = finished && stats.correct === stats.total;
     return {
       key: tool,
       label: TOOL_LABELS[tool],
-      done: passed,
-      needsRetry: finished && !passed,
+      done: cleared,
+      needsRetry:
+        stats.correct < stats.total && (finished || Boolean(saved.retry)),
       percent: total
         ? Math.round((Math.min(stats.correct, total) / total) * 100)
         : 0,

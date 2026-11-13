@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api.ts'
-import { Button, ResultNav } from '../../components/ui.tsx'
+import { Button, ResultChip, ResultNav } from '../../components/ui.tsx'
 import type { Assignment, FillItem, FlashCard, McItem, PlayProgress } from '../../types.ts'
 import { VocabPackPlay } from './VocabPackPlay.tsx'
 
@@ -23,6 +23,7 @@ function emptyPlayState(data: Assignment) {
     known: Array(count).fill(false) as boolean[],
     marked: Array(count).fill(false) as boolean[],
     feedback: Array(count).fill(null) as Array<ItemFeedback | null>,
+    queue: Array.from({ length: count }, (_, index) => index),
     step: 0,
   }
 }
@@ -39,6 +40,10 @@ function restorePlayState(data: Assignment) {
     known: take(saved.known, empty.known),
     marked: take(saved.marked, empty.marked),
     feedback: take(saved.feedback, empty.feedback),
+    queue:
+      saved.queue?.length
+        ? saved.queue.filter((index) => !saved.known?.[index])
+        : empty.queue.filter((index) => !saved.known?.[index]),
     step: Math.min(Math.max(saved.step ?? 0, 0), Math.max(empty.selected.length - 1, 0)),
   }
 }
@@ -52,6 +57,7 @@ export function PlayPage() {
   const [known, setKnown] = useState<boolean[]>([])
   const [marked, setMarked] = useState<boolean[]>([])
   const [feedback, setFeedback] = useState<Array<ItemFeedback | null>>([])
+  const [queue, setQueue] = useState<number[]>([])
   const [step, setStep] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [error, setError] = useState('')
@@ -68,7 +74,8 @@ export function PlayPage() {
     setKnown(next.known)
     setMarked(next.marked)
     setFeedback(next.feedback)
-    setStep(next.step)
+    setQueue(next.queue)
+    setStep(next.queue[0] ?? next.step)
     setFlipped(false)
     canPersist.current = data.status !== 'COMPLETED'
   }
@@ -82,7 +89,7 @@ export function PlayPage() {
       })
   }, [id])
 
-  snapshot.current = { step, selected, texts, known, marked, feedback }
+  snapshot.current = { step, selected, texts, known, marked, feedback, queue }
 
   async function persist(progress: PlayProgress = snapshot.current) {
     if (!id || !canPersist.current) return
@@ -131,8 +138,8 @@ export function PlayPage() {
 
   async function submit() {
     if (!id || !assignment) return
-    if (assignment.exercise.type === 'FLASHCARDS' && !marked.every(Boolean)) {
-      setError('Отметьте все карточки, прежде чем завершить')
+    if (assignment.exercise.type === 'FLASHCARDS' && !known.every(Boolean)) {
+      setError('Отметьте все карточки как выученные, прежде чем завершить')
       return
     }
     setPending(true)
@@ -171,7 +178,7 @@ export function PlayPage() {
   const exercise = assignment.exercise
   const allAnswered =
     exercise.type === 'FLASHCARDS'
-      ? marked.length > 0 && marked.every(Boolean)
+      ? known.length > 0 && known.every(Boolean)
       : feedback.length > 0 && feedback.every(Boolean)
   const mcItems = (exercise.payload.items ?? []) as McItem[]
   const fillItems = (exercise.payload.items ?? []) as FillItem[]
@@ -193,24 +200,32 @@ export function PlayPage() {
   }
 
   function markCard(know: boolean) {
-    if (!flipped && !marked[step]) {
-      setError('Сначала переверните карточку')
-      return
-    }
     const nextKnown = [...known]
     const nextMarked = [...marked]
-    nextKnown[step] = know
-    nextMarked[step] = true
+    const currentQueue = queue.length ? queue : cards.map((_, index) => index)
+    let nextQueue = currentQueue.filter((index) => index !== step)
+    if (know) {
+      nextKnown[step] = true
+      nextMarked[step] = true
+    } else {
+      nextKnown[step] = false
+      nextMarked[step] = false
+      const rest = nextQueue
+      const at = Math.min(3, rest.length)
+      nextQueue = [...rest.slice(0, at), step, ...rest.slice(at)]
+    }
+    const nextStep = nextQueue[0] ?? step
     setKnown(nextKnown)
     setMarked(nextMarked)
+    setQueue(nextQueue)
+    setStep(nextStep)
     setError('')
     setFlipped(false)
-    const nextStep = last ? step : Math.min(cards.length - 1, step + 1)
-    if (!last) setStep(nextStep)
     void persist({
       ...snapshot.current,
       known: nextKnown,
       marked: nextMarked,
+      queue: nextQueue,
       step: nextStep,
     })
   }
@@ -242,8 +257,15 @@ export function PlayPage() {
           )}
         </div>
 
-        <div className="flex-1 overflow-auto p-5 lg:p-8">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-line bg-paper p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">
+          <div className="mx-auto max-w-lg rounded-2xl border border-line bg-paper p-4 sm:p-6">
+            {exercise.type !== 'FLASHCARDS' ? (
+              <div className="result-chip-slot mb-4">
+                {currentFeedback ? (
+                  <ResultChip correct={currentFeedback.correct} expected={currentFeedback.expected} />
+                ) : null}
+              </div>
+            ) : null}
             {exercise.prompt ? (
               <p className="mb-4 text-[14px] text-ink-soft">{exercise.prompt}</p>
             ) : null}
@@ -289,16 +311,15 @@ export function PlayPage() {
                 </div>
                 {currentFeedback ? (
                   <ResultNav
-                    correct={currentFeedback.correct}
-                    expected={currentFeedback.expected}
                     last={last}
                     pending={pending}
                     onNext={goNext}
                     onDone={() => void submit()}
                     doneLabel="Завершить"
+                    align="end"
                   />
                 ) : (
-                  <p className="mt-3 text-[13px] text-ink-soft">Выберите ответ</p>
+                  <div className="mt-6 h-11" />
                 )}
               </div>
             ) : null}
@@ -312,7 +333,13 @@ export function PlayPage() {
                   <div className="mt-1 text-[13px] text-ink-soft">{fillItems[step].hint}</div>
                 ) : null}
                 <input
-                  className="hangul mt-4 w-full border-b-2 border-cedar bg-transparent py-2 text-[22px] outline-none disabled:opacity-70"
+                  className="ko-input hangul disabled:opacity-70"
+                  lang="ko"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
                   value={texts[step] ?? ''}
                   disabled={Boolean(currentFeedback) || pending}
                   onChange={(event) =>
@@ -330,22 +357,22 @@ export function PlayPage() {
                   }}
                 />
                 {!currentFeedback ? (
-                  <Button
-                    className="mt-3"
-                    onClick={() => void checkCurrent({ text: texts[step] })}
-                    disabled={pending || !texts[step]?.trim()}
-                  >
-                    {pending ? 'Проверяю…' : 'Проверить'}
-                  </Button>
+                  <div className="mt-6 flex h-11 justify-end">
+                    <Button
+                      onClick={() => void checkCurrent({ text: texts[step] })}
+                      disabled={pending || !texts[step]?.trim()}
+                    >
+                      {pending ? 'Проверяю…' : 'Проверить'}
+                    </Button>
+                  </div>
                 ) : (
                   <ResultNav
-                    correct={currentFeedback.correct}
-                    expected={currentFeedback.expected}
                     last={last}
                     pending={pending}
                     onNext={goNext}
                     onDone={() => void submit()}
                     doneLabel="Завершить"
+                    align="end"
                   />
                 )}
               </div>
@@ -366,11 +393,11 @@ export function PlayPage() {
                   </div>
                   <div className="flash-hint">{cards[step].hint && !flipped ? cards[step].hint : ' '}</div>
                 </button>
-                <div className="mt-4 flex gap-2">
-                  <Button tone="ghost" disabled={!flipped && !marked[step]} onClick={() => markCard(false)}>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button tone="ghost" onClick={() => markCard(false)}>
                     Ещё учу
                   </Button>
-                  <Button disabled={!flipped && !marked[step]} onClick={() => markCard(true)}>
+                  <Button onClick={() => markCard(true)}>
                     Знаю
                   </Button>
                 </div>
@@ -396,9 +423,10 @@ export function PlayPage() {
             const itemFeedback = feedback[index]
             const firstOpen =
               exercise.type === 'FLASHCARDS'
-                ? marked.findIndex((item) => !item)
+                ? known.findIndex((item) => !item)
                 : feedback.findIndex((item) => !item)
-            const reachable = firstOpen === -1 || index <= firstOpen
+            const reachable =
+              exercise.type === 'FLASHCARDS' ? !known[index] || step === index : firstOpen === -1 || index <= firstOpen
             const doneCard = Boolean(marked[index])
             return (
               <button

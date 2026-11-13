@@ -110,10 +110,10 @@ export function AssignmentCard({
             </div>
           </>
         )}
-        <div className={`flex flex-wrap items-center gap-2 ${done ? '' : 'mt-4'}`}>
+        <div className={`flex flex-wrap items-stretch gap-2 ${done ? '' : 'mt-4'}`}>
           <Link
             to={`/student/play/${id}`}
-            className={`inline-flex rounded-lg px-4 py-2 text-[14px] font-semibold ${
+            className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 py-2 text-center text-[14px] font-semibold sm:flex-none ${
               done
                 ? 'border border-mint/40 bg-paper text-mint hover:bg-mint/10'
                 : 'bg-cedar text-white hover:bg-cedar-dark'
@@ -126,7 +126,7 @@ export function AssignmentCard({
               type="button"
               disabled={pending}
               onClick={() => void restart()}
-              className="inline-flex rounded-lg px-4 py-2 text-[14px] font-semibold text-ink-soft hover:bg-paper hover:text-ink disabled:opacity-60"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg px-4 py-2 text-[14px] font-semibold text-ink-soft hover:bg-paper hover:text-ink disabled:opacity-60 sm:flex-none"
             >
               {pending ? 'Сбрасываю…' : 'Пройти заново'}
             </button>

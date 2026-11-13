@@ -20,6 +20,11 @@ export function Shell() {
   const links = user?.role === 'TEACHER' ? teacherLinks : studentLinks
   const player = location.pathname.includes('/play/')
 
+  function signOut() {
+    logout()
+    navigate('/login')
+  }
+
   if (player) {
     return (
       <div className="min-h-svh bg-paper">
@@ -29,30 +34,41 @@ export function Shell() {
   }
 
   return (
-    <div className="flex min-h-svh bg-paper">
-      <aside className="flex w-[72px] shrink-0 flex-col border-r border-line bg-paper lg:w-[220px]">
-        <div className="flex items-start justify-between gap-2 px-2 py-4 lg:px-4">
+    <div className="flex min-h-svh flex-col bg-paper lg:flex-row">
+      <aside className="hidden w-[220px] shrink-0 flex-col border-r border-line bg-paper lg:flex">
+        <div className="flex items-start justify-between gap-2 px-4 py-4">
           <div className="min-w-0">
-            <div className="hidden lg:block">
-              <Wordmark />
-            </div>
-            <p className="text-center text-[11px] font-semibold text-cedar lg:hidden">Тренажёр</p>
-            <p className="mt-1 hidden truncate text-[12px] text-ink-soft lg:block">{user?.name}</p>
+            <Wordmark />
+            <p className="mt-1 truncate text-[12px] text-ink-soft">{user?.name}</p>
           </div>
-          <button
-            type="button"
-            title="Выйти"
-            aria-label="Выйти"
-            className="rounded-lg p-2 text-ink-soft hover:bg-blush hover:text-cedar"
-            onClick={() => {
-              logout()
-              navigate('/login')
-            }}
-          >
-            <LogoutIcon />
-          </button>
+          <LogoutButton onClick={signOut} />
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-2">
+          {links.map((link) => (
+            <SideLink key={link.to} {...link} />
+          ))}
+        </nav>
+        <ThemePicker labeled />
+      </aside>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-line bg-paper px-4 py-3 lg:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-medium">{user?.name}</p>
+          </div>
+          <ThemePicker />
+          <LogoutButton onClick={signOut} />
+        </header>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 pb-24 sm:px-5 sm:py-6 lg:pb-6">
+          <Outlet />
+        </main>
+      </div>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-2">
           {links.map((link) => {
             const Icon = link.icon
             return (
@@ -61,25 +77,58 @@ export function Shell() {
                 to={link.to}
                 end={link.to === '/teacher' || link.to === '/student'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium ${
-                    isActive ? 'bg-cedar text-white' : 'text-ink-soft hover:bg-blush hover:text-ink'
+                  `flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                    isActive ? 'text-cedar' : 'text-ink-soft'
                   }`
                 }
               >
                 <Icon />
-                <span className="hidden lg:inline">{link.label}</span>
-            </NavLink>
-          )
-        })}
-        </nav>
-        <ThemePicker labeled />
-      </aside>
-      <div className="min-w-0 flex-1">
-        <main className={player ? 'h-full' : 'mx-auto w-full max-w-6xl px-5 py-6'}>
-          <Outlet />
-        </main>
-      </div>
+                {link.label}
+              </NavLink>
+            )
+          })}
+        </div>
+      </nav>
     </div>
+  )
+}
+
+function SideLink({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to: string
+  label: string
+  icon: () => JSX.Element
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={to === '/teacher' || to === '/student'}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium ${
+          isActive ? 'bg-cedar text-white' : 'text-ink-soft hover:bg-blush hover:text-ink'
+        }`
+      }
+    >
+      <Icon />
+      {label}
+    </NavLink>
+  )
+}
+
+function LogoutButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title="Выйти"
+      aria-label="Выйти"
+      className="rounded-lg p-2 text-ink-soft hover:bg-blush hover:text-cedar"
+      onClick={onClick}
+    >
+      <LogoutIcon />
+    </button>
   )
 }
 
