@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth.tsx'
 import { ThemePicker } from './ThemePicker.tsx'
@@ -100,7 +101,7 @@ function SideLink({
 }: {
   to: string
   label: string
-  icon: () => JSX.Element
+  icon: () => ReactElement
 }) {
   return (
     <NavLink
