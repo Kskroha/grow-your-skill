@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import { AuthProvider } from './auth.tsx'
 import { ThemeProvider } from './theme.tsx'
+import { registerPwa } from './pwa.ts'
 import './index.css'
+
+registerPwa()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

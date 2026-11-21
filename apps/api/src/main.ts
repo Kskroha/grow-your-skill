@@ -33,6 +33,15 @@ async function bootstrap() {
   );
   const webDist = process.env.WEB_DIST;
   if (webDist && existsSync(webDist)) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path === '/sw.js' || req.path === '/index.html' || req.path === '/manifest.webmanifest') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+      if (req.path === '/sw.js') {
+        res.setHeader('Service-Worker-Allowed', '/');
+      }
+      next();
+    });
     app.useStaticAssets(webDist);
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -43,6 +52,7 @@ async function bootstrap() {
         next();
         return;
       }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(join(webDist, 'index.html'));
     });
   }

@@ -301,3 +301,31 @@ export function asPackPayload(value: unknown): PackPayload | null {
   if (!Array.isArray(data.tools) || !data.activities) return null;
   return data;
 }
+
+export function sameWordList(a: VocabWord[], b: VocabWord[]) {
+  if (a.length !== b.length) return false;
+  return a.every(
+    (word, index) =>
+      word.ko === b[index]?.ko &&
+      word.ru === b[index]?.ru &&
+      (word.roman ?? "") === (b[index]?.roman ?? ""),
+  );
+}
+
+export function sameWordKeys(a: VocabWord[], b: VocabWord[]) {
+  if (a.length !== b.length) return false;
+  return a.every((word, index) => word.ko === b[index]?.ko);
+}
+
+/** Prefer live topic.words; keep stored tools; rebuild activities when words change. */
+export function resolvePackPayload(
+  stored: unknown,
+  topicWords?: unknown,
+): PackPayload | null {
+  const pack = asPackPayload(stored);
+  if (!pack) return null;
+  if (topicWords === undefined) return pack;
+  const live = parseWords(topicWords);
+  if (live.length === 0 || sameWordList(pack.words, live)) return pack;
+  return buildPackPayload(live, pack.tools);
+}

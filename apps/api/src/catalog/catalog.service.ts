@@ -1,5 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AssignmentStatus, ExerciseType, Prisma } from '@prisma/client';
+import {
+  asPackPayload,
+  buildPackPayload,
+  parseTools,
+  parseWords,
+  sameWordKeys,
+} from '../assignments/vocab-pack';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExerciseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { CreateTopicDto, UpdateTopicDto } from './dto/topic.dto';
@@ -39,21 +46,76 @@ export class CatalogService {
   }
 
   async updateTopic(authorId: string, id: string, dto: UpdateTopicDto) {
-    await this.getTopic(authorId, id);
+    const previous = await this.getTopic(authorId, id);
     const { words, ...rest } = dto;
-    return this.prisma.topic.update({
+    const normalizedWords = words
+      ? words.map((word) => ({
+          ko: word.ko,
+          ru: word.ru,
+          ...(word.roman ? { roman: word.roman } : {}),
+        }))
+      : null;
+    const topic = await this.prisma.topic.update({
       where: { id },
       data: {
         ...rest,
-        ...(words
-          ? {
-              words: words.map((word) => ({
-                ko: word.ko,
-                ru: word.ru,
-                ...(word.roman ? { roman: word.roman } : {}),
-              })) as Prisma.InputJsonValue,
-            }
+        ...(normalizedWords
+          ? { words: normalizedWords as Prisma.InputJsonValue }
           : {}),
+      },
+    });
+
+    if (normalizedWords) {
+      await this.syncVocabPackExercises(
+        authorId,
+        id,
+        topic.title,
+        parseWords(previous.words),
+        parseWords(normalizedWords),
+      );
+    }
+
+    return topic;
+  }
+
+  private async syncVocabPackExercises(
+    authorId: string,
+    topicId: string,
+    topicTitle: string,
+    previousWords: ReturnType<typeof parseWords>,
+    nextWords: ReturnType<typeof parseWords>,
+  ) {
+    const packs = await this.prisma.exercise.findMany({
+      where: { topicId, authorId, type: ExerciseType.VOCAB_PACK },
+    });
+    if (packs.length === 0) return;
+
+    const keysChanged = !sameWordKeys(previousWords, nextWords);
+    for (const exercise of packs) {
+      const tools = parseTools(asPackPayload(exercise.payload)?.tools);
+      if (tools.length === 0) continue;
+      await this.prisma.exercise.update({
+        where: { id: exercise.id },
+        data: {
+          title: `Отработка: ${topicTitle}`,
+          payload: buildPackPayload(
+            nextWords,
+            tools,
+          ) as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    if (!keysChanged) return;
+
+    await this.prisma.assignment.updateMany({
+      where: {
+        exerciseId: { in: packs.map((item) => item.id) },
+        status: { in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS] },
+      },
+      data: {
+        progress: Prisma.DbNull,
+        status: AssignmentStatus.ASSIGNED,
       },
     });
   }

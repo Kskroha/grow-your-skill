@@ -30,17 +30,41 @@ import {
   parseWords,
   packActivityCount,
   packToolSummaries,
+  resolvePackPayload,
   toolHasPassed,
+  type PackPayload,
   type PracticeTool,
 } from './vocab-pack';
 
 const assignmentInclude = {
   exercise: {
-    include: { topic: { select: { id: true, title: true, kind: true } } },
+    include: {
+      topic: { select: { id: true, title: true, kind: true, words: true } },
+    },
   },
   student: { select: { id: true, name: true, email: true } },
   attempts: { orderBy: { createdAt: 'desc' as const }, take: 5 },
 };
+
+type ExerciseWithTopic = {
+  type: ExerciseType;
+  payload: Prisma.JsonValue;
+  topic?: { words?: Prisma.JsonValue | null } | null;
+};
+
+function livePack(exercise: ExerciseWithTopic): PackPayload | null {
+  if (exercise.type !== ExerciseType.VOCAB_PACK) return null;
+  return resolvePackPayload(exercise.payload, exercise.topic?.words);
+}
+
+function withLivePackPayload<T extends ExerciseWithTopic>(exercise: T): T {
+  const pack = livePack(exercise);
+  if (!pack) return exercise;
+  return {
+    ...exercise,
+    payload: pack as unknown as Prisma.JsonValue,
+  };
+}
 
 @Injectable()
 export class AssignmentsService {
@@ -131,15 +155,16 @@ export class AssignmentsService {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => {
-      const pack = asPackPayload(row.exercise.payload);
+      const exercise = withLivePackPayload(row.exercise);
+      const pack = livePack(exercise);
       const packTools = pack ? packToolSummaries(pack, row.progress) : undefined;
-      const percent = progressPercent(row.exercise.type, row.exercise.payload, row.progress);
+      const percent = progressPercent(exercise.type, exercise.payload, row.progress);
       if (user.role !== Role.STUDENT) {
-        return { ...row, packTools, progressPercent: percent };
+        return { ...row, exercise, packTools, progressPercent: percent };
       }
       return {
         ...row,
-        exercise: stripSolutions(row.exercise),
+        exercise: stripSolutions(exercise),
         progress: undefined,
         packTools,
         progressPercent: percent,
@@ -168,23 +193,20 @@ export class AssignmentsService {
       });
       assignment.status = AssignmentStatus.IN_PROGRESS;
     }
+    const exercise = withLivePackPayload(assignment.exercise);
     if (user.role === Role.STUDENT) {
       const resume =
         assignment.status === AssignmentStatus.COMPLETED ? null : assignment.progress;
-      const pack = asPackPayload(assignment.exercise.payload);
+      const pack = livePack(exercise);
       return {
         ...assignment,
         progress: resume,
-        progressPercent: progressPercent(
-          assignment.exercise.type,
-          assignment.exercise.payload,
-          resume,
-        ),
+        progressPercent: progressPercent(exercise.type, exercise.payload, resume),
         packTools: pack ? packToolSummaries(pack, resume) : undefined,
-        exercise: stripSolutions(assignment.exercise),
+        exercise: stripSolutions(exercise),
       };
     }
-    return assignment;
+    return { ...assignment, exercise };
   }
 
   async remove(teacherId: string, id: string) {
@@ -204,13 +226,23 @@ export class AssignmentsService {
     }
     const assignment = await this.prisma.assignment.findFirst({
       where: { id, studentId: user.id },
-      include: { exercise: true },
+      include: {
+        exercise: {
+          include: { topic: { select: { words: true } } },
+        },
+      },
     });
     if (!assignment) {
       throw new NotFoundException('Задание не найдено');
     }
     if (assignment.exercise.type === ExerciseType.VOCAB_PACK) {
-      return this.checkPackItem(assignment, dto);
+      return this.checkPackItem(
+        {
+          ...assignment,
+          exercise: withLivePackPayload(assignment.exercise),
+        },
+        dto,
+      );
     }
     if (assignment.exercise.type === ExerciseType.FLASHCARDS) {
       throw new BadRequestException('Карточки отмечаются без проверки перевода');
@@ -256,11 +288,8 @@ export class AssignmentsService {
     if (!assignment) {
       throw new NotFoundException('Задание не найдено');
     }
-    const graded = gradeExercise(
-      assignment.exercise.type,
-      assignment.exercise.payload,
-      dto.answers,
-    );
+    const exercise = withLivePackPayload(assignment.exercise);
+    const graded = gradeExercise(exercise.type, exercise.payload, dto.answers);
     const percent = toPercent(graded.score, graded.maxScore);
     const attempt = await this.prisma.attempt.create({
       data: {
@@ -317,7 +346,11 @@ export class AssignmentsService {
     }
     const assignment = await this.prisma.assignment.findFirst({
       where: { id, studentId: user.id },
-      include: { exercise: true },
+      include: {
+        exercise: {
+          include: { topic: { select: { words: true } } },
+        },
+      },
     });
     if (!assignment) {
       throw new NotFoundException('Задание не найдено');
@@ -325,7 +358,8 @@ export class AssignmentsService {
     if (assignment.status === AssignmentStatus.COMPLETED) {
       return { ok: true };
     }
-    if (assignment.exercise.type === ExerciseType.VOCAB_PACK) {
+    const exercise = withLivePackPayload(assignment.exercise);
+    if (exercise.type === ExerciseType.VOCAB_PACK) {
       await this.prisma.assignment.update({
         where: { id },
         data: {
@@ -336,8 +370,8 @@ export class AssignmentsService {
       return {
         ok: true,
         progressPercent: progressPercent(
-          assignment.exercise.type,
-          assignment.exercise.payload,
+          exercise.type,
+          exercise.payload,
           dto.progress as unknown as Prisma.JsonValue,
         ),
       };
