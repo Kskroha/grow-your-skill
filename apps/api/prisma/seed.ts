@@ -367,6 +367,193 @@ async function main() {
     },
   });
 
+  const conflictWords = [
+    { ko: "논란이 되다", ru: "становиться предметом споров", roman: "nollani doeda" },
+    { ko: "갈등이 생기다", ru: "возникать (о конфликте)", roman: "galdeungi saenggida" },
+    { ko: "이해관계가 다르다", ru: "иметь разные интересы", roman: "ihaegwangyega dareuda" },
+    { ko: "갈등을 풀다", ru: "разрешать конфликт", roman: "galdeungeul pulda" },
+    { ko: "문제가 되다/안 되다", ru: "быть проблемой / не быть проблемой", roman: "munjega doeda/an doeda" },
+    { ko: "입장이 다르다", ru: "иметь разные позиции", roman: "ipjangi dareuda" },
+    { ko: "요구하다", ru: "требовать, запрашивать", roman: "yoguhada" },
+    { ko: "반대에 부딪히다", ru: "сталкиваться с противодействием", roman: "bandaee budichida" },
+    { ko: "항의하다", ru: "протестовать, жаловаться", roman: "hanguihada" },
+    { ko: "해결책을 찾다", ru: "находить решение", roman: "haegyeolchaegeul chatda" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_conflicts" },
+    update: {
+      title: "Конфликты и проблемы",
+      description: "Конфликт интересов, требования, протест и поиск решения.",
+      words: conflictWords,
+    },
+    create: {
+      id: "topic_conflicts",
+      title: "Конфликты и проблемы",
+      description: "Конфликт интересов, требования, протест и поиск решения.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: conflictWords,
+    },
+  });
+
+  const limitsCriticismWords = [
+    { ko: "제한하다", ru: "ограничивать", roman: "jehanhada" },
+    { ko: "비난하다/비난을 받다", ru: "критиковать / подвергаться критике", roman: "binanhada/binaneul batda" },
+    { ko: "차별하다/차별을 받다", ru: "дискриминировать / подвергаться дискриминации", roman: "chabyeolhada/chabyeoreul batda" },
+    { ko: "불편을 겪다", ru: "испытывать неудобства", roman: "bulpyeoneul gyeokda" },
+    { ko: "피해를 입다", ru: "терпеть ущерб", roman: "pihaereul ipda" },
+    { ko: "양해를 구하다", ru: "просить понимания", roman: "yanghaereul guhada" },
+    { ko: "불가능하다", ru: "быть невозможным", roman: "bulganeunghada" },
+    { ko: "불공평하다", ru: "быть несправедливым", roman: "bulgongpyeonghada" },
+    { ko: "불성실하다", ru: "быть недобросовестным", roman: "bulseongsilhada" },
+    { ko: "불친절하다", ru: "быть невежливым", roman: "bulchinjeolhada" },
+    { ko: "불필요하다", ru: "быть ненужным", roman: "bulpiryohada" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_limits_criticism" },
+    update: {
+      title: "Ограничения, критика и неудобства",
+      description: "Ограничения, критика, дискриминация и слова на 불-.",
+      words: limitsCriticismWords,
+    },
+    create: {
+      id: "topic_limits_criticism",
+      title: "Ограничения, критика и неудобства",
+      description: "Ограничения, критика, дискриминация и слова на 불-.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: limitsCriticismWords,
+    },
+  });
+
+  const relationsDutiesWords = [
+    { ko: "부양하다", ru: "содержать, обеспечивать", roman: "buyanghada" },
+    { ko: "효도하다", ru: "проявлять сыновнюю почтительность", roman: "hyodohada" },
+    { ko: "인내하다", ru: "терпеть", roman: "innaehada" },
+    { ko: "순종하다", ru: "подчиняться, исполнять", roman: "sunjonghada" },
+    { ko: "존중하다", ru: "уважать", roman: "jonjunghada" },
+    { ko: "감당하다", ru: "справляться, выдерживать", roman: "gamdanghada" },
+    { ko: "공감하다", ru: "разделять чувства, соглашаться", roman: "gonggamhada" },
+    { ko: "동등하다", ru: "быть равным", roman: "dongdeunghada" },
+    { ko: "신뢰하다", ru: "доверять", roman: "sinroehada" },
+    { ko: "병행하다", ru: "совмещать", roman: "byeonghaenghada" },
+    { ko: "가사를 분담하다", ru: "разделять обязанности по дому", roman: "gasareul bundamhada" },
+    { ko: "육아에 참여하다", ru: "участвовать в воспитании детей", roman: "yugae chamyeohada" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_relations_duties" },
+    update: {
+      title: "Отношения и обязанности",
+      description: "Уважение, доверие, семья и распределение обязанностей.",
+      words: relationsDutiesWords,
+    },
+    create: {
+      id: "topic_relations_duties",
+      title: "Отношения и обязанности",
+      description: "Уважение, доверие, семья и распределение обязанностей.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: relationsDutiesWords,
+    },
+  });
+
+  const lifeSocietyWords = [
+    { ko: "미혼", ru: "неженатый, незамужняя", roman: "mihon" },
+    { ko: "기혼", ru: "женатый, замужняя", roman: "gihon" },
+    { ko: "독신", ru: "холостяк, одинокий человек", roman: "doksin" },
+    { ko: "비혼", ru: "сознательный отказ от брака", roman: "bihon" },
+    { ko: "배우자", ru: "супруг(а)", roman: "baeuja" },
+    { ko: "결혼 적령기", ru: "подходящий возраст для брака", roman: "gyeolhon jeongnyeonggi" },
+    { ko: "지위가 향상되다", ru: "повышаться в статусе", roman: "jiwiga hyangsangdoeda" },
+    { ko: "사회 진출을 하다", ru: "выходить в общество, начинать карьеру", roman: "sahoe jinchureul hada" },
+    { ko: "인식이 바뀌다", ru: "меняться (о восприятии)", roman: "insigi bakkwida" },
+    { ko: "대우를 받다", ru: "получать хорошее обращение, признание", roman: "daeureul batda" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_life_society" },
+    update: {
+      title: "Жизнь и общество",
+      description: "Брак, семья, статус и восприятие в обществе.",
+      words: lifeSocietyWords,
+    },
+    create: {
+      id: "topic_life_society",
+      title: "Жизнь и общество",
+      description: "Брак, семья, статус и восприятие в обществе.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: lifeSocietyWords,
+    },
+  });
+
+  const idiomWords = [
+    { ko: "그림의 떡이다", ru: "недосягаемая мечта", roman: "geurimui tteogida" },
+    { ko: "작은 고추가 맵다", ru: "мал, да удал", roman: "jageun gochuga maepda" },
+    { ko: "하늘의 별 따기이다", ru: "очень трудно, почти невозможно", roman: "haneure byeol ttagida" },
+    { ko: "누워서 침 뱉기이다", ru: "навредить самому себе", roman: "nuwoseo chim baetgida" },
+    { ko: "티끌 모아 태산이다", ru: "копейка рубль бережет", roman: "tikkeul moa taesanida" },
+    { ko: "남의 떡이 더 커 보인다", ru: "у соседа трава зеленее", roman: "namui tteogi deo keo boinda" },
+    { ko: "미운 아이 떡 하나 더 준다", ru: "убить добротой", roman: "miun ai tteok hana deo junda" },
+    { ko: "호랑이도 제 말 하면 온다", ru: "легок на помине", roman: "horangido je mal hamyeon onda" },
+    { ko: "보기 좋은 떡이 먹기도 좋다", ru: "внешность важна", roman: "bogi joeun tteogi meokgido jota" },
+    { ko: "개구리 올챙이 적 생각 못 한다", ru: "зазнаться, забыть свои корни", roman: "gaeguri olchaengi jeok saenggak mot handa" },
+    { ko: "원숭이도 나무에서 떨어질 때가 있다", ru: "на старуху бывает проруха", roman: "wonsungido namueseo tteoreojil ttaega itda" },
+    { ko: "떡 줄 사람은 생각지도 않는데 김칫국부터 마신다", ru: "делить шкуру неубитого медведя", roman: "tteok jul sarameun saenggakjido anneunde gimchitgukbuteo masinda" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_idioms" },
+    update: {
+      title: "Идиомы и пословицы",
+      description: "Корейские пословицы и устойчивые выражения с понятным смыслом.",
+      words: idiomWords,
+    },
+    create: {
+      id: "topic_idioms",
+      title: "Идиомы и пословицы",
+      description: "Корейские пословицы и устойчивые выражения с понятным смыслом.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: idiomWords,
+    },
+  });
+
+  const characterAnimalWords = [
+    { ko: "복을 받다", ru: "получать благословение", roman: "bogeul batda" },
+    { ko: "벌을 받다", ru: "быть наказанным", roman: "beoreul batda" },
+    { ko: "욕심을 부리다", ru: "быть жадным, жадничать", roman: "yoksimeul burida" },
+    { ko: "은혜를 갚다", ru: "отплатить за услугу", roman: "eunhyereul gapda" },
+    { ko: "정직하다", ru: "быть честным", roman: "jeongjikhada" },
+    { ko: "영리하다", ru: "быть умным, сообразительным", roman: "yeongnihada" },
+    { ko: "어리석다", ru: "быть глупым", roman: "eoriseokda" },
+    { ko: "곰 같다", ru: "быть похожим на медведя", roman: "gom gatda" },
+    { ko: "양 같다", ru: "быть похожим на овцу", roman: "yang gatda" },
+    { ko: "여우 같다", ru: "быть похожим на лису", roman: "yeou gatda" },
+    { ko: "청개구리 같다", ru: "делать всё наоборот, упрямиться", roman: "cheonggaeguri gatda" },
+    { ko: "호랑이 같다", ru: "быть похожим на тигра", roman: "horangi gatda" },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_character_animals" },
+    update: {
+      title: "Характер, качества и сравнения с животными",
+      description: "Качества характера и сравнения с животными.",
+      words: characterAnimalWords,
+    },
+    create: {
+      id: "topic_character_animals",
+      title: "Характер, качества и сравнения с животными",
+      description: "Качества характера и сравнения с животными.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: characterAnimalWords,
+    },
+  });
+
   await prisma.topic.upsert({
     where: { id: "topic_eu_irregular" },
     update: {
