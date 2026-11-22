@@ -328,6 +328,7 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
     }
   })
   const allDone = summaries.length > 0 && summaries.every((item) => item.done)
+  const packWords = (pack.words ?? []) as Array<{ ko: string; ru: string }>
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -401,6 +402,22 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
                 <Button className="mt-5" onClick={() => void finishPack()} disabled={pending}>
                   {pending ? 'Сохраняю…' : 'Завершить тему'}
                 </Button>
+              ) : null}
+              {packWords.length > 0 ? (
+                <div className="mt-6 border-t border-line pt-4">
+                  <p className="mb-2 text-[12px] font-medium text-ink-soft">Слова · {packWords.length}</p>
+                  <ul className="space-y-1.5">
+                    {packWords.map((word) => (
+                      <li
+                        key={word.ko}
+                        className="flex items-baseline gap-2 text-[13px] leading-snug sm:text-[12px]"
+                      >
+                        <span className="hangul shrink-0 font-medium text-ink">{word.ko}</span>
+                        <span className="min-w-0 text-ink-soft">{word.ru}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
             </div>
           ) : (
