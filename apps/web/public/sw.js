@@ -1,5 +1,5 @@
 /* Network-first PWA worker: keeps installs, avoids stale app shells. */
-const CACHE = 'haru-shell-v1'
+const CACHE = 'haru-shell-v2'
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
