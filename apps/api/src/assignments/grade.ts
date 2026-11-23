@@ -185,17 +185,30 @@ export function gradeMcItem(
   };
 }
 
+function answerVariants(answer: string) {
+  const parts = answer
+    .split(/[,，]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : [answer];
+}
+
 export function gradeFillItem(answer: string, value: string) {
+  const normalized = normalize(value);
+  const correct = answerVariants(answer).some((variant) => normalize(variant) === normalized);
   return {
-    correct: normalize(value) === normalize(answer),
+    correct,
     expected: answer,
   };
 }
 
 export function gradeSpoken(answer: string, value: string) {
   const clean = (text: string) => text.trim().replace(/\s+/g, '').toLowerCase().normalize('NFC');
+  const heard = clean(value);
+  const correct =
+    Boolean(value.trim()) && answerVariants(answer).some((variant) => clean(variant) === heard);
   return {
-    correct: Boolean(value.trim()) && clean(value) === clean(answer),
+    correct,
     expected: answer,
   };
 }

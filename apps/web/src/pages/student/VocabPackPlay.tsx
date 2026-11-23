@@ -405,17 +405,30 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
               ) : null}
               {packWords.length > 0 ? (
                 <div className="mt-6 border-t border-line pt-4">
-                  <p className="mb-2 text-[12px] font-medium text-ink-soft">Слова · {packWords.length}</p>
+                  <p className="mb-2 text-[12px] font-medium text-ink-soft">
+                    {packWords.some((word) => /[\uAC00-\uD7A3]/.test(word.ru))
+                      ? `Обычное → уважительное · ${packWords.length}`
+                      : `Слова · ${packWords.length}`}
+                  </p>
                   <ul className="space-y-1.5">
-                    {packWords.map((word) => (
-                      <li
-                        key={word.ko}
-                        className="flex items-baseline gap-2 text-[13px] leading-snug sm:text-[12px]"
-                      >
-                        <span className="hangul shrink-0 font-medium text-ink">{word.ko}</span>
-                        <span className="min-w-0 text-ink-soft">{word.ru}</span>
-                      </li>
-                    ))}
+                    {packWords.map((word) => {
+                      const koreanPair = /[\uAC00-\uD7A3]/.test(word.ru)
+                      return (
+                        <li
+                          key={word.ko}
+                          className="flex items-baseline gap-2 text-[13px] leading-snug sm:text-[12px]"
+                        >
+                          <span className="hangul shrink-0 font-medium text-ink">{word.ko}</span>
+                          {koreanPair ? <span className="shrink-0 text-ink-soft">→</span> : null}
+                          <span
+                            className={`min-w-0 ${koreanPair ? 'hangul font-medium text-ink' : 'text-ink-soft'}`}
+                            lang={koreanPair ? 'ko' : undefined}
+                          >
+                            {word.ru}
+                          </span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </div>
               ) : null}
@@ -661,8 +674,17 @@ function ToolPlayer({
       {tool === 'WRITE' && writeItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
-            <p className="text-[13px] text-ink-soft">Напишите по-корейски</p>
-            <div className="mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[28px]">
+            <p className="text-[13px] text-ink-soft">
+              {/[\uAC00-\uD7A3]/.test(writeItems[step].prompt)
+                ? 'Напишите уважительную форму'
+                : 'Напишите по-корейски'}
+            </p>
+            <div
+              className={`mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[28px] ${
+                /[\uAC00-\uD7A3]/.test(writeItems[step].prompt) ? 'hangul' : ''
+              }`}
+              lang={/[\uAC00-\uD7A3]/.test(writeItems[step].prompt) ? 'ko' : undefined}
+            >
               {writeItems[step].prompt}
             </div>
           </div>
@@ -715,8 +737,17 @@ function ToolPlayer({
       {tool === 'SPEAK' && speakItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
-            <p className="text-[13px] text-ink-soft">Скажите или напишите по-корейски</p>
-            <div className="mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[32px]">
+            <p className="text-[13px] text-ink-soft">
+              {/[\uAC00-\uD7A3]/.test(speakItems[step].prompt)
+                ? 'Скажите или напишите уважительную форму'
+                : 'Скажите или напишите по-корейски'}
+            </p>
+            <div
+              className={`mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[32px] ${
+                /[\uAC00-\uD7A3]/.test(speakItems[step].prompt) ? 'hangul' : ''
+              }`}
+              lang={/[\uAC00-\uD7A3]/.test(speakItems[step].prompt) ? 'ko' : undefined}
+            >
               {speakItems[step].prompt}
             </div>
           </div>
@@ -784,11 +815,22 @@ function ToolPlayer({
       {tool === 'YES_NO' && yesNoItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none">
-            <p className="text-[13px] text-ink-soft">Верный ли это перевод?</p>
+            <p className="text-[13px] text-ink-soft">
+              {/[\uAC00-\uD7A3]/.test(yesNoItems[step].ru)
+                ? 'Верная ли уважительная форма?'
+                : 'Верный ли это перевод?'}
+            </p>
             <div className="hangul mt-4 text-[40px] font-medium leading-tight sm:text-[36px]" lang="ko">
               {yesNoItems[step].ko}
             </div>
-            <div className="mt-3 text-[22px] sm:mt-2">{yesNoItems[step].ru}</div>
+            <div
+              className={`mt-3 text-[22px] sm:mt-2 ${
+                /[\uAC00-\uD7A3]/.test(yesNoItems[step].ru) ? 'hangul' : ''
+              }`}
+              lang={/[\uAC00-\uD7A3]/.test(yesNoItems[step].ru) ? 'ko' : undefined}
+            >
+              {yesNoItems[step].ru}
+            </div>
           </div>
           <div className="mt-3 shrink-0 sm:mt-6">
             <div className="grid grid-cols-2 gap-2">

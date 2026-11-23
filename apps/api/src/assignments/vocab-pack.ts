@@ -75,6 +75,11 @@ function shuffle<T>(items: T[]) {
   return next;
 }
 
+/** Korean–Korean pairs (e.g. plain → honorific): study the `ru` side. */
+function isKoreanPair(word: VocabWord) {
+  return /[\uAC00-\uD7A3]/.test(word.ru);
+}
+
 export function buildPackPayload(
   words: VocabWord[],
   tools: PracticeTool[],
@@ -109,12 +114,20 @@ export function buildPackPayload(
   }
   if (tools.includes("WRITE")) {
     activities.WRITE = {
-      items: words.map((word) => ({ prompt: word.ru, answer: word.ko })),
+      items: words.map((word) =>
+        isKoreanPair(word)
+          ? { prompt: word.ko, answer: word.ru }
+          : { prompt: word.ru, answer: word.ko },
+      ),
     };
   }
   if (tools.includes("SPEAK")) {
     activities.SPEAK = {
-      items: words.map((word) => ({ prompt: word.ru, answer: word.ko })),
+      items: words.map((word) =>
+        isKoreanPair(word)
+          ? { prompt: word.ko, answer: word.ru }
+          : { prompt: word.ru, answer: word.ko },
+      ),
     };
   }
   if (tools.includes("YES_NO")) {
