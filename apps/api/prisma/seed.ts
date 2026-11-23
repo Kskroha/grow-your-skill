@@ -554,6 +554,53 @@ async function main() {
     },
   });
 
+  const honorificWords = [
+    { ko: "집 - 댁", ru: "дом (уваж.)", roman: "jip - daek" },
+    { ko: "이름 - 성함", ru: "имя (уваж.)", roman: "ireum - seongham" },
+    { ko: "생일 - 생신", ru: "день рождения (уваж.)", roman: "saengil - saengsin" },
+    { ko: "말 - 말씀", ru: "речь, слова (уваж.)", roman: "mal - malsseum" },
+    { ko: "밥 - 진지", ru: "еда, рис (уваж.)", roman: "bap - jinji" },
+    { ko: "나이 - 연세", ru: "возраст (уваж.)", roman: "nai - yeonse" },
+    { ko: "사람 - 분", ru: "человек (уваж.)", roman: "saram - bun" },
+    { ko: "이/가 - 께서", ru: "частица подлежащего (уваж.)", roman: "i/ga - kkeseo" },
+    { ko: "에게/한테 - 께", ru: "частица «кому» (уваж.)", roman: "ege/hante - kke" },
+    { ko: "자다 - 주무시다", ru: "спать", roman: "jada - jumusida" },
+    { ko: "말하다 - 말씀하시다", ru: "говорить, сказать", roman: "malhada - malsseumhasida" },
+    { ko: "주다 - 주시다, 드리다", ru: "давать, дарить", roman: "juda - jusida, deurida" },
+    { ko: "먹다 - 드시다", ru: "есть", roman: "meokda - deusida" },
+    { ko: "아프다 - 편찮으시다", ru: "быть больным", roman: "apeuda - pyeonchaneusida" },
+    {
+      ko: "데리고 가다/오다 - 모시고 가다/오다",
+      ru: "приводить, сопровождать",
+      roman: "derigo gada/oda - mosigo gada/oda",
+    },
+    { ko: "만나다 - 뵈다, 뵙다", ru: "встречаться", roman: "mannada - boeda, boepda" },
+    { ko: "묻다 - 여쭈다, 여쭙다", ru: "спрашивать", roman: "mutda - yeojjuda, yeojjupda" },
+    { ko: "있다 - 계시다, 있으시다", ru: "быть, иметься", roman: "itda - gyesida, isseusida" },
+    {
+      ko: "없다 - 안 계시다, 없으시다",
+      ru: "не быть, не иметься",
+      roman: "eopda - an gyesida, eopseusida",
+    },
+  ];
+
+  await prisma.topic.upsert({
+    where: { id: "topic_honorifics" },
+    update: {
+      title: "Уважительное обращение",
+      description: "Обычные слова и их уважительные формы: существительные, частицы и глаголы.",
+      words: honorificWords,
+    },
+    create: {
+      id: "topic_honorifics",
+      title: "Уважительное обращение",
+      description: "Обычные слова и их уважительные формы: существительные, частицы и глаголы.",
+      kind: TopicKind.VOCABULARY,
+      authorId: teacher.id,
+      words: honorificWords,
+    },
+  });
+
   await prisma.topic.upsert({
     where: { id: "topic_eu_irregular" },
     update: {
