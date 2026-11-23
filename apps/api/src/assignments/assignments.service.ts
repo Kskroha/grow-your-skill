@@ -21,6 +21,7 @@ import {
   gradeFillItem,
   gradeMcItem,
   gradeSpoken,
+  gradeYesNoItem,
   toPercent,
 } from './grade';
 import {
@@ -447,11 +448,8 @@ export class AssignmentsService {
     } else if (tool === 'YES_NO' && pack.activities.YES_NO) {
       const item = pack.activities.YES_NO.items[dto.index];
       if (!item) throw new NotFoundException('Вопрос не найден');
-      const picked = Boolean(dto.yes);
-      result = {
-        correct: picked === item.correct,
-        expected: item.correct ? '네' : '아니요',
-      };
+      const picked = dto.yes === true;
+      result = gradeYesNoItem(item, picked, pack.words);
     } else {
       throw new BadRequestException('Этот шаг проверяется иначе');
     }

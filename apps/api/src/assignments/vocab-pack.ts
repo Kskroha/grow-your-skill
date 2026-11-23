@@ -131,18 +131,17 @@ export function buildPackPayload(
     };
   }
   if (tools.includes("YES_NO")) {
+    // Keep a stable order (no random shuffle) so GET and CHECK always see the same pairs.
     activities.YES_NO = {
-      items: shuffle(
-        words.map((word, index) => {
-          const wrong = words[(index + 1) % words.length];
-          const correct = words.length < 2 || index % 2 === 0;
-          return {
-            ko: word.ko,
-            ru: correct ? word.ru : wrong.ru,
-            correct,
-          };
-        }),
-      ),
+      items: words.map((word, index) => {
+        const wrong = words[(index + 1) % words.length];
+        const correct = words.length < 2 || index % 2 === 0;
+        return {
+          ko: word.ko,
+          ru: correct ? word.ru : wrong.ru,
+          correct,
+        };
+      }),
     };
   }
   return { words, tools: orderedTools(tools), activities };
@@ -166,6 +165,7 @@ export function packTotalCount(payload: PackPayload) {
 type ToolProgress = {
   done?: boolean;
   retry?: boolean;
+  passedOnce?: boolean;
   marked?: boolean[];
   known?: boolean[];
   feedback?: Array<{ correct?: boolean } | null | undefined>;
@@ -183,10 +183,19 @@ export function toolAnswerStats(
     const correct = known.filter(Boolean).length;
     return { total, answered: correct, correct };
   }
+  const known = saved.known ?? [];
   const feedback = saved.feedback ?? [];
-  const answered = feedback.filter(Boolean).length;
-  const correct = feedback.filter((item) => Boolean(item?.correct)).length;
+  const answered = range(total).filter(
+    (index) => Boolean(feedback[index]) || Boolean(known[index]),
+  ).length;
+  const correct = range(total).filter(
+    (index) => Boolean(feedback[index]?.correct) || Boolean(known[index]),
+  ).length;
   return { total, answered, correct };
+}
+
+function range(count: number) {
+  return Array.from({ length: count }, (_, index) => index);
 }
 
 export function toolHasPassed(
@@ -242,7 +251,9 @@ export function packToolSummaries(payload: PackPayload, progress: unknown) {
       label: TOOL_LABELS[tool],
       done: cleared,
       needsRetry:
-        stats.correct < stats.total && (finished || Boolean(saved.retry)),
+        stats.correct < stats.total &&
+        (finished ||
+          Boolean(tool === "FLASHCARDS" ? saved.retry : saved.passedOnce && saved.retry)),
       percent: total
         ? Math.round((Math.min(stats.correct, total) / total) * 100)
         : 0,

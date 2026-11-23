@@ -58,7 +58,6 @@ export class CheckItemDto {
   heard?: string;
 
   @IsOptional()
-  @Type(() => Boolean)
   @IsBoolean()
   yes?: boolean;
 }

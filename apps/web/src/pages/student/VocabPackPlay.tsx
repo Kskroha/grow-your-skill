@@ -32,12 +32,12 @@ function optionTextClass(texts: string[]) {
 
 function isAnswered(tool: PracticeTool, state: PlayProgress, index: number) {
   if (tool === 'FLASHCARDS') return Boolean(state.known?.[index])
-  return Boolean(state.feedback?.[index])
+  return Boolean(state.feedback?.[index]) || Boolean(state.known?.[index])
 }
 
 function isCorrect(tool: PracticeTool, state: PlayProgress, index: number) {
   if (tool === 'FLASHCARDS') return Boolean(state.known?.[index])
-  return Boolean(state.feedback?.[index]?.correct)
+  return Boolean(state.feedback?.[index]?.correct) || Boolean(state.known?.[index])
 }
 
 function toolStats(tool: PracticeTool, state: PlayProgress, total: number) {
@@ -51,7 +51,10 @@ function toolStats(tool: PracticeTool, state: PlayProgress, total: number) {
     total,
     finished,
     passed: cleared,
-    needsRetry: !cleared && (finished || Boolean(state.retry)) && correct < total,
+    needsRetry:
+      !cleared &&
+      (finished || Boolean(tool === 'FLASHCARDS' ? state.retry : state.passedOnce && state.retry)) &&
+      correct < total,
   }
 }
 
@@ -60,7 +63,11 @@ function wrongIndices(tool: PracticeTool, state: PlayProgress, total: number) {
 }
 
 function activeQueue(state: PlayProgress, total: number) {
-  return state.queue?.length ? state.queue : range(total)
+  if (state.passedOnce && state.retry && Array.isArray(state.queue)) {
+    const items = state.queue.filter((index) => !state.known?.[index] && !state.feedback?.[index]?.correct)
+    if (items.length > 0) return items
+  }
+  return range(total)
 }
 
 function remainingFlashQueue(state: PlayProgress, total: number) {
@@ -81,6 +88,7 @@ function resetWrong(tool: PracticeTool, state: PlayProgress, wrong: number[]): P
   const next: PlayProgress = {
     ...state,
     retry: true,
+    passedOnce: true,
     queue: wrong,
     step: wrong[0] ?? 0,
     done: false,
@@ -155,7 +163,15 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
   }
 
   function toolState(tool: PracticeTool): PlayProgress {
-    return { ...emptyTool(countFor(tool)), ...(progress.tools?.[tool] ?? {}) }
+    const count = countFor(tool)
+    const state = { ...emptyTool(count), ...(progress.tools?.[tool] ?? {}) }
+    if (tool === 'FLASHCARDS' || state.passedOnce || state.done) return state
+    if (!state.retry && !Array.isArray(state.queue)) return state
+    const current = state.step ?? 0
+    const pending = range(count).filter((index) => !state.known?.[index] && !state.feedback?.[index])
+    const stay = Boolean(state.feedback?.[current]) || !state.known?.[current]
+    const step = stay ? current : (pending.find((index) => index > current) ?? pending[0] ?? current)
+    return { ...state, retry: false, queue: undefined, step }
   }
 
   async function persist(next: PlayProgress) {
@@ -218,15 +234,12 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
       const queue = remainingFlashQueue(state, count)
       state = { ...state, queue, step: queue[0] ?? 0, done: queue.length === 0, retry: queue.length > 0 && queue.length < count }
     } else {
-      const wrong = wrongIndices(tool, state, count)
-      const unansweredWrong = wrong.filter((index) => !isAnswered(tool, state, index))
-      if (wrong.length > 0 && (state.retry || toolStats(tool, state, count).finished)) {
-        if (unansweredWrong.length > 0) {
-          state = { ...state, retry: true, queue: unansweredWrong, step: unansweredWrong[0], done: false }
-        } else {
-          state = resetWrong(tool, state, wrong)
-        }
-      }
+      const pending = range(count).filter((index) => !state.known?.[index] && !state.feedback?.[index])
+      const wrong = range(count).filter((index) => {
+        const item = state.feedback?.[index]
+        return Boolean(item) && !item.correct && !state.known?.[index]
+      })
+      if (pending.length === 0 && wrong.length > 0) state = resetWrong(tool, state, wrong)
     }
     update({ ...progress, currentTool: tool, tools: { ...progress.tools, [tool]: state } })
   }
@@ -511,8 +524,24 @@ function ToolPlayer({
   const last = queueLast && remainingWrong.length === 0
 
   function startErrorRound(nextState: PlayProgress) {
-    const wrong = wrongIndices(tool, nextState, total)
+    const pending = range(total).filter((index) => !nextState.known?.[index] && !nextState.feedback?.[index])
+    if (!nextState.passedOnce && pending.length > 0) {
+      const from = nextState.step ?? 0
+      const nextIndex = pending.find((index) => index > from) ?? pending[0]
+      onState({ ...nextState, step: nextIndex, done: false, retry: false, queue: undefined })
+      return
+    }
+    const wrong = range(total).filter((index) => {
+      const item = nextState.feedback?.[index]
+      return Boolean(item) && !item?.correct && !nextState.known?.[index]
+    })
     if (wrong.length === 0) {
+      if (pending.length > 0) {
+        const from = nextState.step ?? 0
+        const nextIndex = pending.find((index) => index > from) ?? pending[0]
+        onState({ ...nextState, step: nextIndex, done: false })
+        return
+      }
       onState({ ...nextState, done: true, retry: false, queue: undefined })
       return
     }
@@ -521,7 +550,10 @@ function ToolPlayer({
   }
 
   function goNext() {
-    const nextIndex = queue[queuePos + 1]
+    const after = Math.max(0, queue.indexOf(step))
+    const nextIndex = queue
+      .slice(after + 1)
+      .find((index) => !state.known?.[index] && !state.feedback?.[index])
     if (nextIndex !== undefined) {
       onState({ ...state, step: nextIndex })
       return
@@ -533,15 +565,30 @@ function ToolPlayer({
     startErrorRound(state)
   }
 
-  const feedbackKey = feedback ? `${step}:${feedback.correct}:${feedback.expected}` : ''
+  const stepNow = useRef(step)
+  stepNow.current = step
+  const seenAnswer = useRef({ step, hasFeedback: Boolean(feedback) })
   useEffect(() => {
-    if (tool === 'FLASHCARDS' || !feedbackKey) return
+    const hasFeedback = Boolean(feedback)
+    const justAnswered =
+      tool !== 'FLASHCARDS' &&
+      seenAnswer.current.step === step &&
+      !seenAnswer.current.hasFeedback &&
+      hasFeedback &&
+      !state.known?.[step]
+    if (!justAnswered) {
+      seenAnswer.current = { step, hasFeedback }
+      return
+    }
+    const origin = step
     const wait = feedback?.correct ? 1100 : 1800
     const timer = window.setTimeout(() => {
+      seenAnswer.current = { step: origin, hasFeedback: true }
+      if (stepNow.current !== origin) return
       goNext()
     }, wait)
     return () => window.clearTimeout(timer)
-  }, [feedbackKey, tool])
+  }, [step, feedback, tool])
 
   function markCard(knows: boolean) {
     const current = cardStep
@@ -572,6 +619,30 @@ function ToolPlayer({
     })
   }
 
+  function skipKnown() {
+    if (tool === 'FLASHCARDS') {
+      markCard(true)
+      return
+    }
+    if (feedback || pending || state.known?.[step]) return
+    const known = range(total).map((index) => Boolean(state.known?.[index]))
+    known[step] = true
+    const nextState: PlayProgress = { ...state, known }
+    const after = Math.max(0, queue.indexOf(step))
+    const nextIndex = queue.slice(after + 1).find((index) => !known[index] && !nextState.feedback?.[index])
+    if (nextIndex !== undefined) {
+      onState({
+        ...nextState,
+        step: nextIndex,
+        done: false,
+        retry: Boolean(nextState.passedOnce && nextState.retry),
+        queue: nextState.passedOnce ? nextState.queue : undefined,
+      })
+      return
+    }
+    startErrorRound(nextState)
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col sm:block sm:rounded-2xl sm:border sm:border-line sm:bg-paper sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -586,7 +657,7 @@ function ToolPlayer({
           {tool === 'FLASHCARDS'
             ? `${range(total).filter((index) => state.known?.[index]).length} из ${total}`
             : `${queuePos + 1} из ${Math.max(queue.length, 1)}`}
-          {tool !== 'FLASHCARDS' && state.retry ? ' · ошибки' : ''}
+          {tool !== 'FLASHCARDS' && state.passedOnce && state.retry ? ' · ошибки' : ''}
         </p>
       </div>
 
@@ -671,7 +742,16 @@ function ToolPlayer({
                 align="end"
               />
             ) : (
-              <div className="mt-6 h-14 sm:h-12" />
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={skipKnown}
+                  className="min-h-11 px-3 text-[14px] font-medium text-ink-soft hover:text-ink disabled:opacity-50"
+                >
+                  Знаю
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -716,7 +796,7 @@ function ToolPlayer({
               }}
             />
             {!feedback ? (
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
                 <Button
                   className="min-h-14 w-full sm:min-h-12 sm:w-auto sm:ml-auto sm:flex"
                   disabled={pending || !state.texts?.[step]?.trim()}
@@ -724,6 +804,16 @@ function ToolPlayer({
                 >
                   Проверить
                 </Button>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={skipKnown}
+                    className="min-h-11 px-3 text-[14px] font-medium text-ink-soft hover:text-ink disabled:opacity-50"
+                  >
+                    Знаю
+                  </button>
+                </div>
               </div>
             ) : (
               <ResultNav
@@ -782,24 +872,36 @@ function ToolPlayer({
               }}
             />
             {!feedback ? (
-              <div className={`mt-4 grid gap-2 ${hasKoreanSpeech() ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                {hasKoreanSpeech() ? (
+              <div className="mt-4 space-y-2">
+                <div className={`grid gap-2 ${hasKoreanSpeech() ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {hasKoreanSpeech() ? (
+                    <Button
+                      tone="ghost"
+                      className="min-h-14 w-full sm:min-h-12"
+                      disabled={listening || pending}
+                      onClick={() => onListen(step)}
+                    >
+                      {listening ? 'Слушаю…' : 'Сказать'}
+                    </Button>
+                  ) : null}
                   <Button
-                    tone="ghost"
                     className="min-h-14 w-full sm:min-h-12"
-                    disabled={listening || pending}
-                    onClick={() => onListen(step)}
+                    disabled={pending || listening || !state.heard?.[step]?.trim()}
+                    onClick={() => onCheck(step, { heard: state.heard?.[step] })}
                   >
-                    {listening ? 'Слушаю…' : 'Сказать'}
+                    Проверить
                   </Button>
-                ) : null}
-                <Button
-                  className="min-h-14 w-full sm:min-h-12"
-                  disabled={pending || listening || !state.heard?.[step]?.trim()}
-                  onClick={() => onCheck(step, { heard: state.heard?.[step] })}
-                >
-                  Проверить
-                </Button>
+                </div>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    disabled={pending || listening}
+                    onClick={skipKnown}
+                    className="min-h-11 px-3 text-[14px] font-medium text-ink-soft hover:text-ink disabled:opacity-50"
+                  >
+                    Знаю
+                  </button>
+                </div>
               </div>
             ) : (
               <ResultNav
@@ -869,7 +971,16 @@ function ToolPlayer({
                 align="end"
               />
             ) : (
-              <div className="mt-6 h-14 sm:h-12" />
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={skipKnown}
+                  className="min-h-11 px-3 text-[14px] font-medium text-ink-soft hover:text-ink disabled:opacity-50"
+                >
+                  Знаю
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -91,6 +91,8 @@ export type PlayProgress = {
   answers?: boolean[]
   done?: boolean
   retry?: boolean
+  /** First pass is finished, so retry is a real error round rather than a shortened queue. */
+  passedOnce?: boolean
   queue?: number[]
   currentTool?: PracticeTool | null
   tools?: Partial<Record<PracticeTool, PlayProgress>>

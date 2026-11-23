@@ -44,6 +44,30 @@ function normalize(text: string) {
   return text.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** True when shown `ru` is a real match for `ko` in the word list. */
+export function yesNoPairMatches(
+  item: { ko: string; ru: string },
+  words: Array<{ ko: string; ru: string }>,
+) {
+  const word = words.find((entry) => entry.ko === item.ko);
+  if (!word) return false;
+  const shown = normalize(item.ru);
+  if (normalize(word.ru) === shown) return true;
+  return answerVariants(word.ru).some((variant) => normalize(variant) === shown);
+}
+
+export function gradeYesNoItem(
+  item: { ko: string; ru: string; correct?: boolean },
+  picked: boolean,
+  words: Array<{ ko: string; ru: string }> = [],
+) {
+  const matched = words.length > 0 ? yesNoPairMatches(item, words) : Boolean(item.correct);
+  return {
+    correct: picked === matched,
+    expected: matched ? '네' : '아니요',
+  };
+}
+
 export function gradeExercise(
   type: ExerciseType,
   payload: unknown,
@@ -97,32 +121,53 @@ export function gradeExercise(
     for (const tool of orderedTools(pack.tools as PracticeTool[])) {
       if (tool === 'TEST' && pack.activities.TEST) {
         const selected = submitted.tools?.TEST?.selected ?? [];
+        const known = submitted.tools?.TEST?.known ?? [];
         pack.activities.TEST.items.forEach((item, index) => {
+          if (known[index]) {
+            review.push({ correct: true, expected: '알아요', selected: '알아요' });
+            return;
+          }
           const verdict = gradeMcItem(item, selected[index]);
           review.push({ correct: verdict.correct, expected: verdict.expected, selected: selected[index] });
         });
       }
       if (tool === 'WRITE' && pack.activities.WRITE) {
         const texts = submitted.tools?.WRITE?.texts ?? [];
+        const known = submitted.tools?.WRITE?.known ?? [];
         pack.activities.WRITE.items.forEach((item, index) => {
+          if (known[index]) {
+            review.push({ correct: true, expected: '알아요', selected: '알아요' });
+            return;
+          }
           const verdict = gradeFillItem(item.answer, texts[index] ?? '');
           review.push({ correct: verdict.correct, expected: verdict.expected, selected: texts[index] });
         });
       }
       if (tool === 'SPEAK' && pack.activities.SPEAK) {
         const heard = submitted.tools?.SPEAK?.heard ?? [];
+        const known = submitted.tools?.SPEAK?.known ?? [];
         pack.activities.SPEAK.items.forEach((item, index) => {
+          if (known[index]) {
+            review.push({ correct: true, expected: '알아요', selected: '알아요' });
+            return;
+          }
           const verdict = gradeSpoken(item.answer, heard[index] ?? '');
           review.push({ correct: verdict.correct, expected: verdict.expected, selected: heard[index] });
         });
       }
       if (tool === 'YES_NO' && pack.activities.YES_NO) {
         const answersYes = submitted.tools?.YES_NO?.answers ?? [];
+        const known = submitted.tools?.YES_NO?.known ?? [];
         pack.activities.YES_NO.items.forEach((item, index) => {
+          if (known[index]) {
+            review.push({ correct: true, expected: '알아요', selected: '알아요' });
+            return;
+          }
           const picked = Boolean(answersYes[index]);
+          const verdict = gradeYesNoItem(item, picked, pack.words);
           review.push({
-            correct: picked === item.correct,
-            expected: item.correct ? '네' : '아니요',
+            correct: verdict.correct,
+            expected: verdict.expected,
             selected: picked ? '네' : '아니요',
           });
         });
