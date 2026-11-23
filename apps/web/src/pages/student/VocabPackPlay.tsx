@@ -405,10 +405,8 @@ export function VocabPackPlay({ assignment }: { assignment: Assignment }) {
               ) : null}
               {packWords.length > 0 ? (
                 <div className="mt-6 border-t border-line pt-4">
-                  <p className="mb-2 text-[12px] font-medium text-ink-soft">
-                    {packWords.some((word) => /[\uAC00-\uD7A3]/.test(word.ru))
-                      ? `Обычное → уважительное · ${packWords.length}`
-                      : `Слова · ${packWords.length}`}
+                  <p className="hangul mb-2 text-[12px] font-medium text-ink-soft" lang="ko">
+                    단어 · {packWords.length}
                   </p>
                   <ul className="space-y-1.5">
                     {packWords.map((word) => {
@@ -596,8 +594,16 @@ function ToolPlayer({
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <button type="button" className="flash-face w-full" onClick={onFlip}>
             <div
-              className={`flash-word ${flipped ? '' : 'hangul'}`}
-              lang={flipped ? undefined : 'ko'}
+              className={`flash-word ${
+                /[\uAC00-\uD7A3]/.test(flipped ? cards[cardStep].back ?? '' : cards[cardStep].front)
+                  ? 'hangul'
+                  : ''
+              }`}
+              lang={
+                /[\uAC00-\uD7A3]/.test(flipped ? cards[cardStep].back ?? '' : cards[cardStep].front)
+                  ? 'ko'
+                  : undefined
+              }
             >
               {flipped ? cards[cardStep].back : cards[cardStep].front}
             </div>
@@ -674,10 +680,8 @@ function ToolPlayer({
       {tool === 'WRITE' && writeItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
-            <p className="text-[13px] text-ink-soft">
-              {/[\uAC00-\uD7A3]/.test(writeItems[step].prompt)
-                ? 'Напишите уважительную форму'
-                : 'Напишите по-корейски'}
+            <p className="hangul text-[13px] text-ink-soft" lang="ko">
+              써 보세요
             </p>
             <div
               className={`mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[28px] ${
@@ -737,10 +741,8 @@ function ToolPlayer({
       {tool === 'SPEAK' && speakItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none sm:text-left">
-            <p className="text-[13px] text-ink-soft">
-              {/[\uAC00-\uD7A3]/.test(speakItems[step].prompt)
-                ? 'Скажите или напишите уважительную форму'
-                : 'Скажите или напишите по-корейски'}
+            <p className="hangul text-[13px] text-ink-soft" lang="ko">
+              말해 보세요
             </p>
             <div
               className={`mt-4 text-[32px] font-semibold leading-snug sm:mt-2 sm:text-[32px] ${
@@ -815,10 +817,8 @@ function ToolPlayer({
       {tool === 'YES_NO' && yesNoItems[step] ? (
         <div className="flex min-h-0 flex-1 flex-col sm:block">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-1 text-center sm:block sm:flex-none">
-            <p className="text-[13px] text-ink-soft">
-              {/[\uAC00-\uD7A3]/.test(yesNoItems[step].ru)
-                ? 'Верная ли уважительная форма?'
-                : 'Верный ли это перевод?'}
+            <p className="hangul text-[13px] text-ink-soft" lang="ko">
+              맞아요?
             </p>
             <div className="hangul mt-4 text-[40px] font-medium leading-tight sm:text-[36px]" lang="ko">
               {yesNoItems[step].ko}
